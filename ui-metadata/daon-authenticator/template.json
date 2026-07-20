@@ -1,0 +1,127 @@
+{
+    "id": "daon-authenticator",
+    "name": "Daon TrustX",
+    "description": "Enable identity verification and login for users with Daon TrustX.",
+    "image": "assets/images/logos/daon.svg",
+    "category": "DEFAULT",
+    "displayOrder": 15,
+    "services": [],
+    "tags": [ "OIDC" ],
+    "idp": {
+        "name": "Daon TrustX",
+        "description": "",
+        "image": "",
+        "isPrimary": false,
+        "isFederationHub": false,
+        "homeRealmIdentifier": "",
+        "certificate": {
+            "certificates": []
+        },
+        "alias": "",
+        "idpIssuerName": "",
+        "federatedAuthenticators": {
+            "defaultAuthenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
+            "authenticators": [
+                {
+                    "authenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
+                    "isEnabled": true,
+                    "properties": [
+                        {
+                            "key": "ClientId",
+                            "displayName": "Client ID",
+                            "description": "Daon TrustX OIDC Client ID.",
+                            "type": "STRING",
+                            "displayOrder": 1,
+                            "regex": ".*",
+                            "isMandatory": true,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "ClientSecret",
+                            "displayName": "Client Secret",
+                            "description": "Daon TrustX OIDC Client Secret.",
+                            "type": "STRING",
+                            "displayOrder": 2,
+                            "regex": ".*",
+                            "isMandatory": true,
+                            "isConfidential": true,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "OAuth2AuthzEPUrl",
+                            "displayName": "Authorization Endpoint URL",
+                            "description": "Daon TrustX OIDC authorization endpoint URL.",
+                            "type": "STRING",
+                            "displayOrder": 3,
+                            "regex": ".*",
+                            "isMandatory": true,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "OAuth2TokenEPUrl",
+                            "displayName": "Token Endpoint URL",
+                            "description": "Daon TrustX OIDC token endpoint URL.",
+                            "type": "STRING",
+                            "displayOrder": 4,
+                            "regex": ".*",
+                            "isMandatory": true,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "Scopes",
+                            "displayName": "Scopes",
+                            "description": "OIDC scopes to request from Daon (e.g. openid profile document).",
+                            "type": "STRING",
+                            "displayOrder": 5,
+                            "regex": ".*",
+                            "isMandatory": false,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "openid profile document",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "daon_login_pd",
+                            "displayName": "Login Process Definition",
+                            "description": "Daon process definition for verified users (login/auth), as <ProcessDefinitionName:Version>. Sent as acr_values.",
+                            "type": "STRING",
+                            "displayOrder": 6,
+                            "regex": ".*",
+                            "isMandatory": false,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        },
+                        {
+                            "key": "daon_enrol_pd",
+                            "displayName": "Enrol Process Definition",
+                            "description": "Daon process definition for first-time verification (enrolment/registration), as <ProcessDefinitionName:Version>. Sent as acr_values.",
+                            "type": "STRING",
+                            "displayOrder": 7,
+                            "regex": ".*",
+                            "isMandatory": false,
+                            "isConfidential": false,
+                            "options": [],
+                            "defaultValue": "",
+                            "subProperties": []
+                        }
+                    ]
+                }
+            ]
+        }
+    },
+    "type": "SOCIAL",
+    "templateId": "daon-authenticator"
+}

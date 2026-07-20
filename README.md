@@ -1,6 +1,19 @@
-# WSO2 Identity Server — Daon TrustX Identity Verification Connector
+# WSO2 Identity Server — Daon TrustX Identity Provider (IDP) Connector
 
-This connector integrates [Daon TrustX](https://www.daon.com/trustx/) identity verification into WSO2 Identity Server using the OIDC Authorization Code flow. Unlike webhook-based connectors, the Daon connector redirects the user's browser to the Daon-hosted verification UI and receives results synchronously via an OIDC callback.
+This connector integrates [Daon TrustX](https://www.daon.com/trustx/) into WSO2 Identity Server as a
+standard **federated OIDC Identity Provider (IDP)**. A single Daon connection drives:
+
+- **Self-registration** — provision a new user's profile from Daon-verified claims.
+- **Invited-user registration** — validate a pre-populated profile against Daon-verified values (lock on mismatch).
+- **Login verification / enrolment** — as a login step, verify an already-enrolled user or enrol a
+  first-time user.
+- **Password-recovery verification** — face re-verification of a verified user.
+
+Which Daon **process definition (PD)** runs is chosen at runtime and sent as `acr_values`
+(`<ProcessDefinitionName:Version>`): the **Enrol PD** for first-time verification (registration /
+login enrolment), the **Login/Auth PD** for already-verified users. The verification state is stored as
+a **federated identity association** (local user ↔ Daon subject) in IS's built-in association store — no
+custom user claims and no separate Identity Verification Provider (IDVP) resource.
 
 ---
 
@@ -19,12 +32,14 @@ This connector integrates [Daon TrustX](https://www.daon.com/trustx/) identity v
 mvn clean install
 ```
 
-The following artifacts are produced:
+Artifacts produced (two OSGi bundles — **no WAR**):
 
 | Artifact | Location |
 |---|---|
-| OSGi bundle | `components/org.wso2.carbon.identity.verification.daon.connector/target/org.wso2.carbon.identity.verification.daon.connector-*.jar` |
-| API WAR | `components/org.wso2.carbon.identity.verification.daon.api/org.wso2.carbon.identity.verification.daon.api.dispatcher/target/idv#daon.war` |
+| Connector bundle | `components/org.wso2.carbon.identity.verification.daon.connector/target/org.wso2.carbon.identity.verification.daon.connector-*.jar` |
+| Authenticator + executor bundle | `components/org.wso2.carbon.identity.verification.daon.authenticator/target/org.wso2.carbon.identity.verification.daon.authenticator-*.jar` |
+
+The authenticator bundle depends on the connector bundle at runtime — deploy both.
 
 ---
 
@@ -35,40 +50,33 @@ The following artifacts are produced:
 ```bash
 IS_HOME=/path/to/wso2is
 
-# OSGi connector bundle
+# OSGi bundles
 cp components/org.wso2.carbon.identity.verification.daon.connector/target/\
 org.wso2.carbon.identity.verification.daon.connector-*.jar \
 $IS_HOME/repository/components/dropins/
 
-# Callback API WAR (deploys at /idv/daon/)
-cp components/org.wso2.carbon.identity.verification.daon.api/\
-org.wso2.carbon.identity.verification.daon.api.dispatcher/target/idv#daon.war \
-$IS_HOME/repository/deployment/server/webapps/
+cp components/org.wso2.carbon.identity.verification.daon.authenticator/target/\
+org.wso2.carbon.identity.verification.daon.authenticator-*.jar \
+$IS_HOME/repository/components/dropins/
 
-# UI metadata — Daon IdVP (identity verification provider)
-cp -r ui-metadata/daon \
-$IS_HOME/repository/resources/identity/extensions/identity-verification-providers/
+# UI metadata — Daon TrustX connection (IDP) template
+cp -r ui-metadata/daon-authenticator \
+$IS_HOME/repository/resources/identity/extensions/connections/
 
 # Daon logo
 cp ui-metadata/assets/images/logos/daon.svg \
 $IS_HOME/repository/deployment/server/webapps/console/resources/connections/assets/images/logos/
 ```
 
-### 2. Update deployment.toml
+> The exact `connections` metadata path can vary by IS version — place `daon-authenticator` where your
+> IS build reads connection templates.
 
-Add the following to `$IS_HOME/repository/conf/deployment.toml`:
+### 2. No custom claims to register
 
-```toml
-# Enable Identity Verification Providers in the IS Console
-[console.identity_verification_providers]
-enabled = true
-
-# Allow unauthenticated access to the Daon OIDC callback endpoint
-[[resource.access_control]]
-context = "/idv/daon/v1/(.*)/callback"
-secure = false
-http_method = "GET"
-```
+Verification state is stored as a **federated identity association** (via the built-in
+`FederatedAssociationManager`, in the `IDP_USER_ID` store) — the presence of an association with the
+Daon IDP means "verified", and the association's federated user id holds the Daon `preferred_username`
+used for `login_hint`. Nothing to register.
 
 ### 3. Restart WSO2 IS
 
@@ -80,52 +88,38 @@ $IS_HOME/bin/wso2server.sh restart
 
 ## Registering an OIDC Client in Daon TrustX
 
-1. Log in to your Daon TrustX administration console
-2. Create a new **Confidential** OIDC client
-3. Add the following as an allowed redirect URI (use a placeholder IdVP ID for now — update it after the provider is created in WSO2 IS):
-   ```
-   https://<IS_HOST>:<PORT>/idv/daon/v1/<idvp-id>/callback
-   ```
-4. Enable the required scopes: `openid`, `profile`, `document`
-5. Note the **Client ID**, **Client Secret**, and your tenant **Base URL**:
-   ```
-   https://<tenant>.oak.trustx.com/auth/realms/<tenant>
-   ```
+1. Log in to your Daon TrustX administration console.
+2. Create a **Confidential** OIDC client.
+3. Add the IS `/commonauth` endpoint (login) and your registration portal callback as allowed redirect
+   URIs. The exact authorized redirect URI is shown on the connection's **Settings** tab after creation.
+4. Enable the required scopes: `openid`, `profile`, `document`.
+5. Note the **Client ID**, **Client Secret**, and the **authorization** and **token** endpoint URLs.
+6. Note the **process definitions** to use for login (verified users) and enrolment (first-time verification).
 
 ---
 
-## Configuring the Connector in WSO2 IS
+## Configuring the Connection in WSO2 IS
 
-### Step 1 — Create the Identity Verification Provider
+### Step 1 — Create the Daon TrustX connection
 
-1. Log in to the WSO2 IS Console
-2. Navigate to **Identity Verification Providers** → **New Identity Verification Provider**
-3. Select **Daon** from the provider list
-4. Fill in the creation form:
+1. Console → **Connections** → **New Connection** → **Daon TrustX**.
+2. Fill in the create form:
 
 | Field | Value |
 |---|---|
-| **Name** | A unique name, e.g. `Daon TrustX` |
-| **Client ID** | OIDC Client ID from Daon TrustX |
-| **Client Secret** | OIDC Client Secret from Daon TrustX |
-| **Base URL** | `https://<tenant>.oak.trustx.com/auth/realms/<tenant>` |
-| **Redirect URI** | `https://<IS_HOST>:<PORT>/idv/daon/v1/<idvp-id>/callback` |
+| **Name** | e.g. `Daon TrustX` |
+| **Client ID** / **Client Secret** | From the Daon OIDC client |
+| **Authorization Endpoint URL** / **Token Endpoint URL** | Daon OIDC endpoints |
+| **Scopes** | `openid profile document` |
+| **Login Process Definition** | PD for verified users, `<Name:Version>` |
+| **Enrol Process Definition** | PD for first-time verification, `<Name:Version>` |
 
-5. Save the provider and copy the generated **IdVP ID**
-6. Go back to Daon TrustX and update the redirect URI with the real IdVP ID
+3. On the **Settings** tab, copy the **Authorized redirect URI** and register it on the Daon OIDC client.
 
-### Step 2 — Complete the Settings
+### Step 2 — Map attributes
 
-Open the **Settings** tab of the created provider and fill in the remaining fields:
-
-| Field | Value |
-|---|---|
-| **Scope** | `openid profile document` |
-| **Callback URL** | URL in your application to redirect the user after verification completes |
-
-### Step 3 — Configure Attribute Mappings
-
-Open the **Attributes** tab and map WSO2 local claims to the corresponding Daon OIDC claim names returned in the ID token:
+On the connection's **Attributes** tab, map Daon claim names to WSO2 local claims (these drive
+provisioning and verification):
 
 | WSO2 Local Claim | Daon Claim Name |
 |---|---|
@@ -133,162 +127,46 @@ Open the **Attributes** tab and map WSO2 local claims to the corresponding Daon 
 | `http://wso2.org/claims/lastname` | `family_name` |
 | `http://wso2.org/claims/dob` | `birthdate` |
 
-Add any additional mappings based on the claims your Daon tenant is configured to return.
+Add mappings for any additional claims your Daon tenant returns. When Daon returns a combined
+`family_name_and_given_name` field instead of split names, the executor splits it on `^`
+(`<given>^<family>`).
+
+### Step 3 — Add Daon to your flows
+
+- **Self-registration**: add the Daon executor node to the registration flow. It sends the **Enrol PD**,
+  provisions the profile from the verified claims, and records a federated association (⇒ verified).
+- **Invited-user registration**: add the Daon executor node to the invited-user flow **before the
+  set-password step**. When the invited user clicks the magic link / enters the OTP, they are redirected
+  to Daon (**Enrol PD**) to verify the claims the admin defined. Every mapped claim the admin set on the
+  user is compared against the Daon-verified values (read from the flow user, falling back to the user
+  store by user id). **Only a successful match advances to set-password.** A mismatch re-prompts the Daon
+  step; after `MAX_VERIFICATION_ATTEMPTS` (default 3, session-scoped) failures the account is locked. On
+  success a federated association is recorded (⇒ verified).
+- **Login**: add **Daon TrustX** to an application's Login Flow as a step **after** the user is
+  identified (e.g. after username/password). If the user has a Daon association it sends the **Login PD**
+  with `login_hint`; otherwise it sends the **Enrol PD** and, on success, creates the association
+  (storing the Daon `preferred_username`).
+- **Password recovery**: the Daon executor node sends the **Login PD** with `login_hint`.
 
 ---
 
-## Verification Flow
+## Runtime Behaviour
 
 ```
-Application            WSO2 IS              Daon TrustX
-     │                    │                      │
-     │─── INITIATED ─────▶│                      │
-     │                    │─── builds OIDC ─────▶│
-     │◀── auth URL ───────│    auth URL          │
-     │                    │                      │
-     │────────── redirect user──────────────────▶│
-     │                    │                      │ (user completes ID&V)
-     │                    │◀─── callback ────────│
-     │                    │    code + state      │
-     │                    │─── exchange code ───▶│
-     │                    │◀─── id_token ────────│
-     │                    │  (verifiedClaims)    │
-     │                    │─── update claims ───▶│ (internal)
-     │◀────────── redirect to callback URL ──────│
-     │                    │                      │
-     │─── check status ──▶│                      │
-     │◀── isVerified ─────│                      │
+                        acr_values (process definition) chosen per use
+  ┌──────────────────────────┬───────────────────────────────────────────┐
+  │ Flow                     │ Process definition                        │
+  ├──────────────────────────┼───────────────────────────────────────────┤
+  │ Self-registration        │ Enrol PD → provision profile, associate    │
+  │ Invited-user registration│ Enrol PD → validate profile, associate     │
+  │ Login (associated)       │ Login/Auth PD (+ login_hint)               │
+  │ Login (not associated)   │ Enrol PD → create Daon association          │
+  │ Password recovery        │ Login/Auth PD (+ login_hint)               │
+  └──────────────────────────┴───────────────────────────────────────────┘
 ```
 
----
-
-## Testing with the API
-
-### 1. Initiate Verification
-
-```bash
-curl -X POST \
-  https://<IS_HOST>:<PORT>/api/users/v1/me/idv/verify \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "idVProviderId": "<idvp-id>",
-    "claims": [
-      "http://wso2.org/claims/givenname",
-      "http://wso2.org/claims/lastname",
-      "http://wso2.org/claims/dob"
-    ],
-    "properties": [
-      {
-        "key": "status",
-        "value": "INITIATED"
-      }
-    ]
-  }'
-```
-
-**Response** — each claim includes `daon_authorization_url` in its metadata:
-
-```json
-[
-  {
-    "id": "...",
-    "uri": "http://wso2.org/claims/givenname",
-    "isVerified": false,
-    "claimMetadata": {
-      "daon_flow_status": "INITIATED",
-      "daon_state": "<uuid>",
-      "daon_authorization_url": "https://<tenant>.oak.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth?response_type=code&client_id=...&state=<uuid>&..."
-    }
-  }
-]
-```
-
-> **Note:** `daon_authorization_url` is returned only in this initiation response — it is not persisted to the database.
-
-### 2. Redirect the User
-
-Redirect the user's browser to the `daon_authorization_url` from the response. The user completes identity verification on the Daon-hosted UI.
-
-### 3. Daon Callback (automatic)
-
-After verification, Daon redirects the browser to:
-```
-GET https://<IS_HOST>:<PORT>/idv/daon/v1/<idvp-id>/callback
-    ?code=<authorization_code>
-    &state=<uuid>
-```
-
-The connector automatically:
-1. Validates the `state` parameter against the stored CSRF token
-2. Exchanges the authorization code for an ID token at the Daon token endpoint
-3. Extracts verified claims from the `verifiedClaims.claims` section of the ID token
-4. Compares each Daon-returned value against the user's existing profile attribute value
-5. Marks the claim `isVerified = true` only if the values match; sets `daon_verification_status = MISMATCH` otherwise
-6. Redirects the user to the configured **Callback URL**
-
-### 4. Re-initiate (if needed)
-
-If the user did not complete verification (e.g. closed the browser), call the verify API again with `"value": "REINITIATED"` in the properties. A fresh authorization URL will be issued.
-
-```bash
-curl -X POST \
-  https://<IS_HOST>:<PORT>/api/users/v1/me/idv/verify \
-  -H "Authorization: Bearer <access_token>" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "idVProviderId": "<idvp-id>",
-    "claims": [
-      "http://wso2.org/claims/givenname",
-      "http://wso2.org/claims/lastname"
-    ],
-    "properties": [
-      {
-        "key": "status",
-        "value": "REINITIATED"
-      }
-    ]
-  }'
-```
-
-### 5. Check Verification Status
-
-```bash
-curl -X GET \
-  "https://<IS_HOST>:<PORT>/api/users/v1/me/idv/claims" \
-  -H "Authorization: Bearer <access_token>"
-```
-
-A successfully verified claim returns:
-
-```json
-{
-  "uri": "http://wso2.org/claims/givenname",
-  "isVerified": true,
-  "claimMetadata": {
-    "daon_flow_status": "COMPLETED",
-    "daon_verification_status": "VERIFIED",
-    "daon_completed_at": "2026-04-19T08:30:00Z"
-  }
-}
-```
-
-If the value Daon returned does not match the user's profile attribute, `isVerified` will be `false` and `daon_verification_status` will be `MISMATCH`.
-
----
-
-## Claim Metadata Reference
-
-The following metadata keys are persisted per claim:
-
-| Key | Description |
-|---|---|
-| `daon_state` | OIDC state UUID used as CSRF token |
-| `daon_flow_status` | `INITIATED` / `REINITIATED` / `COMPLETED` |
-| `daon_verification_status` | `VERIFIED` / `MISMATCH` / `FAILED` (set after callback) |
-| `daon_completed_at` | ISO-8601 timestamp of callback processing |
-
-> `daon_authorization_url` is returned transiently in the initiation API response but is not stored in the database.
+Profile attributes come from the ID token's `verifiedClaims.claims`; the verified state itself is a
+federated association (local user ↔ Daon subject), not a user claim.
 
 ---
 
@@ -296,11 +174,10 @@ The following metadata keys are persisted per claim:
 
 | Symptom | Likely Cause | Fix |
 |---|---|---|
-| `404` on callback URL | IdVP ID is in the wrong position in the URL | Correct URL format is `/idv/daon/v1/<idvp-id>/callback` |
-| `401` on callback URL | Authorization not disabled for callback endpoint | Add `[[resource.access_control]]` config to `deployment.toml` |
-| `401` on token exchange | Wrong `client_id` / `client_secret` | Verify credentials match the Daon TrustX OIDC client |
-| `400` on token exchange | Authorization code expired or already used | Re-initiate the flow to get a fresh code |
-| `state mismatch` error | User followed a stale authorization URL | Re-initiate to get a new state and URL |
-| Claims not verified after callback | Claim name in attribute mapping doesn't match Daon ID token | Check `verifiedClaims.claims` keys in the ID token against your attribute mappings |
-| Redirect URI mismatch in Daon | Configured `redirect_uri` doesn't exactly match what's registered | Ensure both values are identical including scheme and port |
-| WAR not deploying | Classloading or OSGi dependency issue | Check `$IS_HOME/repository/logs/wso2carbon.log` for errors |
+| Redirect to Daon fails / missing endpoint | Authorization/token endpoint blank on the connection | Set the OIDC endpoint URLs on the **Settings** tab |
+| `401` on token exchange | Wrong `Client ID` / `Client Secret` | Verify credentials match the Daon OIDC client |
+| No `acr_values` sent | Login/Enrol PD not configured | Set the process definitions on the connection |
+| Login always uses Enrol PD | Daon association not created (enrol never completed, or `FederatedAssociationManager` unavailable) | Confirm the enrol flow completed and that Daon runs after user identification |
+| Verified attributes not provisioned | Attribute mapping missing on the connection | Add the mapping on the **Attributes** tab |
+| Names swapped | Daon emits `<family>^<given>` order | Adjust the split order in `DaonExecutor#populateNameClaims` |
+| Redirect URI mismatch in Daon | Registered `redirect_uri` differs | Use the exact Authorized redirect URI from the **Settings** tab |

@@ -40,13 +40,6 @@ public class DaonConstants {
     public static final String CALLBACK_URL = "callback_url";
 
     /**
-     * URL format for the Daon OIDC callback endpoint on this IS instance.
-     * The single format argument is the IdV provider UUID.
-     * Build with: IdentityUtil.getServerURL(String.format(DAON_CALLBACK_URL_FORMAT, idvpId), true, true)
-     */
-    public static final String DAON_CALLBACK_URL_FORMAT = "/idv/daon/v1/%s/callback";
-
-    /**
      * OIDC protocol constants.
      */
     public static final String REDIRECT_URI = "redirect_uri";

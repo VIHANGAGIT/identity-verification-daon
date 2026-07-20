@@ -18,9 +18,8 @@
 
 package org.wso2.carbon.identity.verification.daon.authenticator.internal;
 
-import org.wso2.carbon.extension.identity.verification.mgt.IdentityVerificationManager;
-import org.wso2.carbon.extension.identity.verification.provider.IdVProviderManager;
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
+import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -28,36 +27,11 @@ import org.wso2.carbon.user.core.service.RealmService;
  */
 public class DaonAuthenticatorDataHolder {
 
-    private static IdVProviderManager idVProviderManager;
-    private static IdentityVerificationManager identityVerificationManager;
     private static RealmService realmService;
     private static OrganizationManager organizationManager;
+    private static FederatedAssociationManager federatedAssociationManager;
 
     private DaonAuthenticatorDataHolder() {
-    }
-
-    public static IdVProviderManager getIdVProviderManager() {
-
-        if (idVProviderManager == null) {
-            throw new RuntimeException("IdVProviderManager was not set during " +
-                    "DaonAuthenticatorServiceComponent startup");
-        }
-        return idVProviderManager;
-    }
-
-    public static void setIdVProviderManager(IdVProviderManager idVProviderManager) {
-
-        DaonAuthenticatorDataHolder.idVProviderManager = idVProviderManager;
-    }
-
-    public static IdentityVerificationManager getIdentityVerificationManager() {
-
-        return identityVerificationManager;
-    }
-
-    public static void setIdentityVerificationManager(IdentityVerificationManager identityVerificationManager) {
-
-        DaonAuthenticatorDataHolder.identityVerificationManager = identityVerificationManager;
     }
 
     public static RealmService getRealmService() {
@@ -78,5 +52,15 @@ public class DaonAuthenticatorDataHolder {
     public static void setOrganizationManager(OrganizationManager organizationManager) {
 
         DaonAuthenticatorDataHolder.organizationManager = organizationManager;
+    }
+
+    public static FederatedAssociationManager getFederatedAssociationManager() {
+
+        return federatedAssociationManager;
+    }
+
+    public static void setFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
+
+        DaonAuthenticatorDataHolder.federatedAssociationManager = federatedAssociationManager;
     }
 }

@@ -19,7 +19,7 @@
 package org.wso2.carbon.identity.verification.daon.authenticator.constants;
 
 /**
- * Constants for the Daon TrustX federated authenticator.
+ * Constants for the Daon TrustX federated identity provider (IDP) — authenticator and flow executor.
  */
 public class DaonAuthenticatorConstants {
 
@@ -29,21 +29,8 @@ public class DaonAuthenticatorConstants {
     public static final String AUTHENTICATOR_NAME = "DaonAuthenticator";
     public static final String AUTHENTICATOR_FRIENDLY_NAME = "Daon TrustX";
 
-    /**
-     * The authenticator property key that holds the Daon IdVP UUID.
-     * Admins set this to the UUID of the already-configured Daon Identity Verification Provider.
-     */
-    public static final String DAON_IDVP_ID = "daon_idvp_id";
-
     /** The /commonauth redirect URI used for the login authentication flow. */
     public static final String COMMON_AUTH_ENDPOINT = "/commonauth";
-
-    /**
-     * FlowExecutionContext property keys used to pass verified claim data from {@code DaonExecutor}
-     * to {@code DaonRegistrationFlowCompletionListener} within the same flow.
-     */
-    public static final String FLOW_CONTEXT_DAON_VERIFIED_CLAIMS = "DAON_IDV_CLAIMS";
-    public static final String FLOW_CONTEXT_DAON_IDVP_ID = "DAON_IDV_IDVP_ID";
 
     /**
      * Query parameters on the OIDC callback request.
@@ -53,17 +40,26 @@ public class DaonAuthenticatorConstants {
     public static final String PARAM_SESSION_STATE = "session_state";
 
     /**
-     * Authenticator-specific (login flow) client credentials.
-     * The standard ClientId / ClientSecret keys are reserved for the DaonExecutor (signup flow)
-     * so that OpenIDConnectExecutor's private auth-URL generation can use them without modification.
+     * Authenticator configuration property keys for the two Daon process definitions (PDs). Both are
+     * sent to Daon as {@code acr_values} in the format {@code <ProcessDefinitionName:Version>}.
+     * The Login (Auth) PD is used for already-verified users; the Enrol PD is used for first-time
+     * verification (registration and login enrolment).
      */
-    public static final String LOGIN_CLIENT_ID = "daon_login_client_id";
-    public static final String LOGIN_CLIENT_SECRET = "daon_login_client_secret";
-    public static final String EXECUTOR_SCOPES = "Scopes";
+    public static final String DAON_LOGIN_PD = "daon_login_pd";
+    public static final String DAON_ENROL_PD = "daon_enrol_pd";
+
+    /** OIDC request parameter carrying the selected Daon process definition. */
+    public static final String ACR_VALUES_PARAM = "acr_values";
 
     /**
-     * Property key used to pass the comma-separated list of Daon claim names (from the IDVP
-     * claim mappings) through the flow context so {@code getAdditionalQueryParams()} can build
+     * Internal authenticator-property key used to carry the resolved process definition into
+     * {@code getAdditionalQueryParams()} for the executor (registration / recovery) flows.
+     */
+    public static final String DAON_SELECTED_PD = "daon_selected_pd";
+
+    /**
+     * Property key used to pass the comma-separated list of Daon claim names (from the IDP claim
+     * mappings) through the authenticator properties so {@code getAdditionalQueryParams()} can build
      * the {@code claims} request parameter dynamically.
      */
     public static final String DAON_CLAIM_NAMES = "daon_claim_names";
@@ -74,34 +70,52 @@ public class DaonAuthenticatorConstants {
      */
     public static final String DAON_LOGIN_HINT = "daon_login_hint";
 
-    /** Flow type string returned by {@code FlowExecutionContext.getFlowType()} for password recovery. */
+    /** Flow type strings returned by {@code FlowExecutionContext.getFlowType()}. */
     public static final String FLOW_TYPE_PASSWORD_RECOVERY = "PASSWORD_RECOVERY";
+    public static final String FLOW_TYPE_REGISTRATION = "REGISTRATION";
+    public static final String FLOW_TYPE_INVITED_USER_REGISTRATION = "INVITED_USER_REGISTRATION";
 
-    // Claim dialect URI for Daon-specific claims
+    // Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
     public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";
 
-    // Identity verification provider ID registered in WSO2 IS for Daon
-    public static final String DAON_IDV_PROVIDER_ID = "DAON";
-    public static final String DAON_IDV_ID = "89463071-0c22-46ad-aed5-c43d11682ab3";
-
-    // Top-level JWT claim field names
+    // Top-level JWT claim field names.
     public static final String JWT_SUBJECT_CLAIM = "sub";
     public static final String JWT_VERIFIED_CLAIMS_OBJECT = "verifiedClaims";
     public static final String JWT_CLAIMS_OBJECT = "claims";
 
-    // Daon claim keys inside the "claims" JWT object
+    // Daon claim keys inside the "claims" JWT object.
     public static final String CLAIM_ADDRESS = "address";
     public static final String CLAIM_ADDRESS_FORMATTED = "formatted";
 
+    // Daon combined-name claim key and the separator Daon uses inside its multi-value fields.
+    public static final String CLAIM_FAMILY_AND_GIVEN_NAME = "family_name_and_given_name";
+    public static final String DAON_FIELD_SEPARATOR = "^";
+
     public static final String USER_ID_CLAIM = "http://wso2.org/claims/userid";
 
-    // WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name
+    // WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
     public static final String WSO2_LASTNAME_CLAIM_URI = "http://wso2.org/claims/lastname";
     public static final String WSO2_GIVENNAME_CLAIM_URI = "http://wso2.org/claims/givenname";
 
-    // IS identity claim used to lock a user account
+    /**
+     * Flow-context property keys carrying the Daon federated association (IDP name + Daon subject /
+     * preferred_username) from {@code DaonExecutor} to {@code DaonFederatedAssociationListener}, which
+     * persists it once the flow completes and the user ID is available. The verification state lives in
+     * the federated association store (IDP_USER_ID) — no custom user claims are required.
+     */
+    public static final String DAON_FED_IDP_NAME = "daon_fed_idp_name";
+    public static final String DAON_FED_SUBJECT = "daon_fed_subject";
+
+    // IS identity claim used to lock a user account.
     public static final String ACCOUNT_LOCKED_CLAIM = "http://wso2.org/claims/identity/accountLocked";
 
-    // Context property key set when IDV claim validation fails (profile vs. Daon-verified values)
-    public static final String DAON_CLAIM_MISMATCH_PROPERTY = "daon_claim_mismatch";
+    // Invited-user verification outcome + retry counting (flow-context property keys).
+    public static final String DAON_VERIFICATION_OUTCOME = "daon_verification_outcome";
+    public static final String DAON_VERIFICATION_ATTEMPTS = "daon_verification_attempts";
+    public static final String OUTCOME_RETRY = "RETRY";
+    public static final String OUTCOME_LOCKED = "LOCKED";
+
+    // Number of failed Daon verification attempts (within an invited-user session) before the account
+    // is locked. Failures below this threshold re-prompt the Daon step; at/above it the account is locked.
+    public static final int MAX_VERIFICATION_ATTEMPTS = 3;
 }

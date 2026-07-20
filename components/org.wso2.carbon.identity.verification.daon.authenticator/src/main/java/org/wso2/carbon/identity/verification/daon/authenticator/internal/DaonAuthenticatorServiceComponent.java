@@ -27,19 +27,18 @@ import org.osgi.service.component.annotations.Deactivate;
 import org.osgi.service.component.annotations.Reference;
 import org.osgi.service.component.annotations.ReferenceCardinality;
 import org.osgi.service.component.annotations.ReferencePolicy;
-import org.wso2.carbon.extension.identity.verification.mgt.IdentityVerificationManager;
-import org.wso2.carbon.extension.identity.verification.provider.IdVProviderManager;
 import org.wso2.carbon.identity.application.authentication.framework.ApplicationAuthenticator;
-import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
-import org.wso2.carbon.identity.flow.execution.engine.listener.FlowExecutionListener;
-import org.wso2.carbon.user.core.service.RealmService;
 import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
+import org.wso2.carbon.identity.flow.execution.engine.listener.FlowExecutionListener;
+import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
+import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
 import org.wso2.carbon.identity.verification.daon.authenticator.DaonAuthenticator;
 import org.wso2.carbon.identity.verification.daon.authenticator.DaonExecutor;
-import org.wso2.carbon.identity.verification.daon.authenticator.DaonRegistrationFlowCompletionListener;
+import org.wso2.carbon.identity.verification.daon.authenticator.DaonFederatedAssociationListener;
+import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * OSGi service component for the Daon TrustX federated authenticator.
+ * OSGi service component for the Daon TrustX federated identity provider (authenticator + executor).
  */
 @Component(
         name = "daon.identity.authenticator",
@@ -57,8 +56,7 @@ public class DaonAuthenticatorServiceComponent {
             ctxt.getBundleContext().registerService(
                     Executor.class.getName(), new DaonExecutor(), null);
             ctxt.getBundleContext().registerService(
-                    FlowExecutionListener.class.getName(),
-                    new DaonRegistrationFlowCompletionListener(), null);
+                    FlowExecutionListener.class.getName(), new DaonFederatedAssociationListener(), null);
             if (LOG.isDebugEnabled()) {
                 LOG.debug("DaonAuthenticator bundle activated successfully.");
             }
@@ -76,38 +74,6 @@ public class DaonAuthenticatorServiceComponent {
     }
 
     @Reference(
-            name = "IdVProviderManager",
-            service = IdVProviderManager.class,
-            cardinality = ReferenceCardinality.MANDATORY,
-            policy = ReferencePolicy.DYNAMIC,
-            unbind = "unsetIdVProviderManager")
-    protected void setIdVProviderManager(IdVProviderManager idVProviderManager) {
-
-        DaonAuthenticatorDataHolder.setIdVProviderManager(idVProviderManager);
-    }
-
-    protected void unsetIdVProviderManager(IdVProviderManager idVProviderManager) {
-
-        DaonAuthenticatorDataHolder.setIdVProviderManager(null);
-    }
-
-    @Reference(
-            name = "IdentityVerificationManager",
-            service = IdentityVerificationManager.class,
-            cardinality = ReferenceCardinality.OPTIONAL,
-            policy = ReferencePolicy.DYNAMIC,
-            unbind = "unsetIdentityVerificationManager")
-    protected void setIdentityVerificationManager(IdentityVerificationManager identityVerificationManager) {
-
-        DaonAuthenticatorDataHolder.setIdentityVerificationManager(identityVerificationManager);
-    }
-
-    protected void unsetIdentityVerificationManager(IdentityVerificationManager identityVerificationManager) {
-
-        DaonAuthenticatorDataHolder.setIdentityVerificationManager(null);
-    }
-
-    @Reference(
             name = "RealmService",
             service = RealmService.class,
             cardinality = ReferenceCardinality.MANDATORY,
@@ -121,6 +87,22 @@ public class DaonAuthenticatorServiceComponent {
     protected void unsetRealmService(RealmService realmService) {
 
         DaonAuthenticatorDataHolder.setRealmService(null);
+    }
+
+    @Reference(
+            name = "FederatedAssociationManager",
+            service = FederatedAssociationManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetFederatedAssociationManager")
+    protected void setFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
+
+        DaonAuthenticatorDataHolder.setFederatedAssociationManager(federatedAssociationManager);
+    }
+
+    protected void unsetFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
+
+        DaonAuthenticatorDataHolder.setFederatedAssociationManager(null);
     }
 
     @Reference(

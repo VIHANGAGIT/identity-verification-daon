@@ -1,0 +1,10 @@
+{
+    "id": "daon-authenticator",
+    "name": "Daon TrustX Authenticator",
+    "description": "Enable login for users with Daon TrustX authentication.",
+    "image": "assets/images/logos/daon.svg",
+    "category": "DEFAULT",
+    "displayOrder": 15,
+    "tags": [ "OIDC" ],
+    "type": "identity-provider"
+}
