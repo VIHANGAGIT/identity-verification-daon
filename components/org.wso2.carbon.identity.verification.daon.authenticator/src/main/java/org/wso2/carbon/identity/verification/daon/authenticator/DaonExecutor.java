@@ -150,12 +150,12 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         // Process definition (as acr_values) applies to every flow that reaches Daon.
         String processDefinition = authenticatorProperties.get(DAON_SELECTED_PD);
         if (StringUtils.isNotBlank(processDefinition)) {
-            params.put(ACR_VALUES_PARAM, urlEncode(processDefinition, "acr_values (process definition)"));
+            params.put(ACR_VALUES_PARAM, processDefinition);
         }
         String loginHint = authenticatorProperties.get(DAON_LOGIN_HINT);
         if (StringUtils.isNotBlank(loginHint)) {
             // Password recovery flow: face auth with login_hint, no verified_claims needed.
-            params.put("login_hint", urlEncode(loginHint, "login_hint"));
+            params.put("login_hint", loginHint);
             return params;
         }
         // Registration / invited user flow: request verified_claims from Daon.
@@ -164,19 +164,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             return params;
         }
         List<String> claimNames = Arrays.asList(claimNamesStr.split(","));
-        params.put("claims", urlEncode(DaonAPIClient.buildClaimsParam(claimNames), "claims"));
+        params.put("claims", DaonAPIClient.buildClaimsParam(claimNames));
         return params;
-    }
-
-    private String urlEncode(String value, String paramName) {
-
-        try {
-            return java.net.URLEncoder.encode(value, "UTF-8");
-        } catch (java.io.UnsupportedEncodingException e) {
-            // UTF-8 is always supported; this branch is unreachable.
-            LOG.warn("Failed to URL-encode Daon " + paramName + " parameter.", e);
-            return value;
-        }
     }
 
     @Override
