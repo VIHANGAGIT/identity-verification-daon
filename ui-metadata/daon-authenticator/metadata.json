@@ -56,7 +56,7 @@
                         "type": "text",
                         "name": "oAuth2AuthzEPUrl",
                         "label": "Authorization Endpoint URL",
-                        "placeholder": "https://<daon-host>/oauth2/authorize",
+                        "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
                         "required": true,
                         "data-testid": "daon-authenticator-create-wizard-page-authz-url",
                         "maxLength": "300",
@@ -69,7 +69,7 @@
                         "type": "text",
                         "name": "oAuth2TokenEPUrl",
                         "label": "Token Endpoint URL",
-                        "placeholder": "https://<daon-host>/oauth2/token",
+                        "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
                         "required": true,
                         "data-testid": "daon-authenticator-create-wizard-page-token-url",
                         "maxLength": "300",
@@ -161,7 +161,7 @@
                     },
                     {
                         "fieldName": "Enrol Process Definition",
-                        "hint": "Daon process definition for first-time verification (registration and login enrolment), sent as <Code class=\"inline-code\">acr_values</Code>."
+                        "hint": "Daon process definition for first-time verification (registration and login enrolment), sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>."
                     }
                 ]
             }
@@ -298,7 +298,7 @@
                     "inputType": "default",
                     "name": "OAuth2AuthzEPUrl",
                     "label": "Authorization Endpoint URL",
-                    "placeholder": "https://<daon-host>/oauth2/authorize",
+                    "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
                     "hint": "The Daon TrustX OIDC authorization endpoint URL.",
                     "required": true,
                     "readOnly": false,
@@ -315,7 +315,7 @@
                     "inputType": "default",
                     "name": "OAuth2TokenEPUrl",
                     "label": "Token Endpoint URL",
-                    "placeholder": "https://<daon-host>/oauth2/token",
+                    "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
                     "hint": "The Daon TrustX OIDC token endpoint URL.",
                     "required": true,
                     "readOnly": false,
@@ -375,24 +375,6 @@
                     "minLength": "1",
                     "width": "16",
                     "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-enrol-pd"
-                },
-                {
-                    "index": 7,
-                    "displayOrder": 8,
-                    "ariaLabel": "Daon TrustX authorized redirect URL",
-                    "inputType": "copy_input",
-                    "type": "text",
-                    "name": "callbackUrl",
-                    "label": "Authorized redirect URI",
-                    "placeholder": "",
-                    "hint": "The authorized redirect URI to configure as the allowed redirect URI of the OIDC client in Daon TrustX.",
-                    "required": "",
-                    "value": "",
-                    "readOnly": true,
-                    "maxLength": "",
-                    "minLength": "",
-                    "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-authorized-redirect-url-wrapper"
                 }
             ]
         }
