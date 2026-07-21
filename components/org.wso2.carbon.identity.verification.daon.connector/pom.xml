@@ -22,7 +22,7 @@
     <parent>
         <groupId>org.wso2.carbon.identity.verification</groupId>
         <artifactId>org.wso2.carbon.identity.verification.daon</artifactId>
-        <version>1.0.0-SNAPSHOT</version>
+        <version>1.0.0</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
@@ -46,13 +46,13 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>org.wso2.carbon.extension.identity.verification</groupId>
-            <artifactId>org.wso2.carbon.extension.identity.verification.mgt</artifactId>
+            <groupId>commons-lang.wso2</groupId>
+            <artifactId>commons-lang</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>commons-lang.wso2</groupId>
-            <artifactId>commons-lang</artifactId>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
             <scope>provided</scope>
         </dependency>
         <dependency>
@@ -101,9 +101,6 @@
                         <_dsannotations>*</_dsannotations>
                         <_dsannotations-options>version;minimum=1.2.0;maximum=1.2.0,nocapabilities,norequirements</_dsannotations-options>
                         <_removeheaders>Require-Capability</_removeheaders>
-                        <Private-Package>
-                            org.wso2.carbon.identity.verification.daon.connector.internal
-                        </Private-Package>
                         <Import-Package>
                             org.apache.commons.lang; version="${commons-lang.wso2.osgi.version.range}",
                             org.apache.commons.logging; version="${import.package.version.commons.logging}",
@@ -120,18 +117,6 @@
                             org.json; version="${json.wso2.version.range}",
                             org.osgi.framework; version="${osgi.framework.imp.pkg.version.range}",
                             org.osgi.service.component; version="${osgi.service.component.imp.pkg.version.range}",
-                            org.wso2.carbon.extension.identity.verification.mgt;
-                            version="${identity.verification.package.version.range}",
-                            org.wso2.carbon.extension.identity.verification.mgt.exception;
-                            version="${identity.verification.package.version.range}",
-                            org.wso2.carbon.extension.identity.verification.mgt.model;
-                            version="${identity.verification.package.version.range}",
-                            org.wso2.carbon.extension.identity.verification.mgt.utils;
-                            version="${identity.verification.package.version.range}",
-                            org.wso2.carbon.extension.identity.verification.provider;
-                            version="${identity.verification.package.version.range}",
-                            org.wso2.carbon.extension.identity.verification.provider.model;
-                            version="${identity.verification.package.version.range}",
                             org.wso2.carbon.identity.base; version="${carbon.identity.package.import.version.range}",
                             org.wso2.carbon.identity.core.util; version="${carbon.identity.package.import.version.range}",
                             org.wso2.carbon.user.api; version="${carbon.user.api.imp.pkg.version.range}",
@@ -140,7 +125,6 @@
                             org.wso2.carbon.user.core.service; version="${carbon.kernel.package.import.version.range}"
                         </Import-Package>
                         <Export-Package>
-                            !org.wso2.carbon.identity.verification.daon.connector.internal,
                             org.wso2.carbon.identity.verification.daon.connector.*; version="${project.version}"
                         </Export-Package>
                     </instructions>

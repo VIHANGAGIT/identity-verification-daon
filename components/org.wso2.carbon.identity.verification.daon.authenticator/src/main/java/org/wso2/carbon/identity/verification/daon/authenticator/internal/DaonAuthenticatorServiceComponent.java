@@ -35,6 +35,7 @@ import org.wso2.carbon.identity.user.profile.mgt.association.federation.Federate
 import org.wso2.carbon.identity.verification.daon.authenticator.DaonAuthenticator;
 import org.wso2.carbon.identity.verification.daon.authenticator.DaonExecutor;
 import org.wso2.carbon.identity.verification.daon.authenticator.DaonFederatedAssociationListener;
+import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -119,5 +120,21 @@ public class DaonAuthenticatorServiceComponent {
     protected void unsetOrganizationManager(OrganizationManager organizationManager) {
 
         DaonAuthenticatorDataHolder.setOrganizationManager(null);
+    }
+
+    @Reference(
+            name = "IdentityProviderManager",
+            service = IdpManager.class,
+            cardinality = ReferenceCardinality.MANDATORY,
+            policy = ReferencePolicy.DYNAMIC,
+            unbind = "unsetIdpManager")
+    protected void setIdpManager(IdpManager idpManager) {
+
+        DaonAuthenticatorDataHolder.setIdpManager(idpManager);
+    }
+
+    protected void unsetIdpManager(IdpManager idpManager) {
+
+        DaonAuthenticatorDataHolder.setIdpManager(null);
     }
 }

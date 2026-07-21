@@ -40,13 +40,29 @@ public class DaonAuthenticatorConstants {
     public static final String PARAM_SESSION_STATE = "session_state";
 
     /**
-     * Authenticator configuration property keys for the two Daon process definitions (PDs). Both are
-     * sent to Daon as {@code acr_values} in the format {@code <ProcessDefinitionName:Version>}.
-     * The Login (Auth) PD is used for already-verified users; the Enrol PD is used for first-time
-     * verification (registration and login enrolment).
+     * Authenticator configuration property key for the Daon <b>login</b> process definition (PD),
+     * configured on the Daon TrustX Authenticator connection. It drives the login (re-verification)
+     * flow and the password-recovery flow, and is sent to Daon as {@code acr_values} in the format
+     * {@code <ProcessDefinitionName:Version>}. Enrolment flows (registration, invited-user) use the
+     * enrol PD configured on the referenced Daon IDP instead ({@link #DAON_ENROL_PD}).
      */
     public static final String DAON_LOGIN_PD = "daon_login_pd";
+
+    /**
+     * Configuration property key for the Daon <b>enrol</b> process definition (PD), configured on the
+     * referenced Daon TrustX IDP connection (not on the authenticator). It drives the enrolment flows
+     * (registration and invited-user) and is sent to Daon as {@code acr_values}. Resolved at runtime
+     * from the referenced IDP alongside its OIDC configuration.
+     */
     public static final String DAON_ENROL_PD = "daon_enrol_pd";
+
+    /**
+     * Authenticator configuration property key holding the resource id (UUID) of the referenced Daon
+     * OIDC IDP connection. The Daon TrustX Authenticator connection carries no OIDC credentials itself;
+     * the client id/secret, authorize/token endpoints, scopes and enrol process definition are resolved
+     * at runtime from this referenced IDP via {@link org.wso2.carbon.idp.mgt.IdpManager#getIdPByResourceId}.
+     */
+    public static final String DAON_IDP_ID = "daon_idp_id";
 
     /** OIDC request parameter carrying the selected Daon process definition. */
     public static final String ACR_VALUES_PARAM = "acr_values";

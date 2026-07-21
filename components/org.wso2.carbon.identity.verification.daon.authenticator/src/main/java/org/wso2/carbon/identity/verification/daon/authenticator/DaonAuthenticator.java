@@ -21,26 +21,25 @@ package org.wso2.carbon.identity.verification.daon.authenticator;
 import org.apache.commons.lang.StringUtils;
 import org.json.JSONObject;
 import org.wso2.carbon.identity.application.authentication.framework.FederatedApplicationAuthenticator;
-import org.wso2.carbon.identity.application.authentication.framework.config.model.ExternalIdPConfig;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
 import org.wso2.carbon.identity.application.authenticator.oidc.OIDCAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.oidc.OpenIDConnectAuthenticator;
-import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.Property;
+import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
 import org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonClientException;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonServerException;
 import org.wso2.carbon.identity.verification.daon.connector.web.DaonAPIClient;
+import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -49,7 +48,7 @@ import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.ACR_VALUES_PARAM;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.COMMON_AUTH_ENDPOINT;
-import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_ENROL_PD;
+import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_IDP_ID;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_LOGIN_PD;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.PARAM_CODE;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.PARAM_STATE;
@@ -60,11 +59,12 @@ import static org.wso2.carbon.identity.verification.daon.authenticator.constants
  * <p>Performs an OIDC Authorization Code flow against Daon. Client credentials, endpoints and scope
  * are read from the connection's own authenticator config (standard federated OIDC keys).</p>
  *
- * <p>Daon runs as a step after the user is identified. Whether the user is Daon-verified is determined
- * by the presence of a <b>federated association</b> with this Daon IDP (no custom user claims). A
- * verified user re-verifies with the <b>Login/Auth PD</b> (with {@code login_hint} taken from the
- * association); a not-yet-verified user goes through the <b>Enrol PD</b>, and on success an association
- * (local user &lt;-&gt; Daon {@code preferred_username}) is created.</p>
+ * <p>Daon runs as a step after the user is identified, and only for users already enrolled with Daon —
+ * i.e. those with a <b>federated association</b> with this Daon IDP (no custom user claims). The OIDC
+ * request always carries the Daon {@code preferred_username} (from the association) as {@code login_hint}
+ * for face re-verification, together with the configured <b>login process definition</b> (sent as
+ * {@code acr_values}). A user with no Daon association is not enrolled: the login flow fails with an
+ * error rather than attempting enrolment (enrolment happens in the registration flow).</p>
  */
 public class DaonAuthenticator extends OpenIDConnectAuthenticator
         implements FederatedApplicationAuthenticator {
@@ -98,24 +98,34 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throws AuthenticationFailedException {
 
         Map<String, String> props = context.getAuthenticatorProperties();
-        String clientId = props.get(OIDCAuthenticatorConstants.CLIENT_ID);
-        String authEndpoint = props.get(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL);
-        if (StringUtils.isBlank(authEndpoint)) {
-            throw new AuthenticationFailedException("Authorization endpoint not configured in the Daon connection.");
+        // OIDC credentials/endpoints live on the referenced Daon IDP connection, not on this
+        // authenticator connection; resolve them by the configured Daon IDP id.
+        Map<String, String> oidcConfig = DaonReferencedIdpUtil.resolveOidcConfig(
+                props.get(DAON_IDP_ID), context.getTenantDomain());
+        String clientId = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_ID);
+        String authEndpoint = oidcConfig.get(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL);
+        if (StringUtils.isBlank(authEndpoint) || StringUtils.isBlank(clientId)) {
+            throw new AuthenticationFailedException(
+                    "Could not resolve the referenced Daon IDP's OIDC configuration. Check the "
+                            + "Daon IDP ID configured on the Daon TrustX Authenticator connection.");
         }
-        String scope = props.get(IdentityApplicationConstants.Authenticator.OIDC.SCOPES);
+        String scope = oidcConfig.get(IdentityApplicationConstants.Authenticator.OIDC.SCOPES);
         if (StringUtils.isBlank(scope)) {
             scope = OIDCAuthenticatorConstants.OAUTH_OIDC_SCOPE;
         }
         String redirectUri = buildCallbackUrl(request);
         String state = context.getContextIdentifier();
 
-        // Verified <=> the user has a federated association with this Daon IDP; the association's
-        // federated user id is the Daon preferred_username used as login_hint.
-        AuthenticatedUser user = context.getLastAuthenticatedUser();
-        String daonSubject = DaonFederatedAssociationUtil.getAssociatedDaonSubject(user, getIdpName(context));
-        boolean verified = daonSubject != null;
-        String processDefinition = verified ? props.get(DAON_LOGIN_PD) : props.get(DAON_ENROL_PD);
+        // Login only serves users already enrolled with Daon: the association's federated user id is the
+        // Daon preferred_username, always sent as login_hint for face re-verification. A user with no
+        // Daon association is not enrolled, so the login flow cannot verify them.
+        String daonSubject = resolveDaonSubject(context);
+        if (StringUtils.isBlank(daonSubject)) {
+            throw new AuthenticationFailedException(
+                    "The user is not enrolled with Daon TrustX. Complete Daon identity verification "
+                            + "before using Daon TrustX as a login step.");
+        }
+        String processDefinition = props.get(DAON_LOGIN_PD);
 
         try {
             StringBuilder url = new StringBuilder(authEndpoint)
@@ -123,21 +133,11 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
                     .append("&client_id=").append(URLEncoder.encode(clientId, StandardCharsets.UTF_8))
                     .append("&scope=").append(URLEncoder.encode(scope, StandardCharsets.UTF_8))
                     .append("&state=").append(URLEncoder.encode(state, StandardCharsets.UTF_8))
-                    .append("&redirect_uri=").append(URLEncoder.encode(redirectUri, StandardCharsets.UTF_8));
-            if (verified && StringUtils.isNotBlank(daonSubject)) {
-                url.append("&login_hint=").append(URLEncoder.encode(daonSubject, StandardCharsets.UTF_8));
-            }
+                    .append("&redirect_uri=").append(URLEncoder.encode(redirectUri, StandardCharsets.UTF_8))
+                    .append("&login_hint=").append(URLEncoder.encode(daonSubject, StandardCharsets.UTF_8));
             if (StringUtils.isNotBlank(processDefinition)) {
                 url.append("&").append(ACR_VALUES_PARAM).append("=")
                         .append(URLEncoder.encode(processDefinition, StandardCharsets.UTF_8));
-            }
-            if (!verified) {
-                // Enrolment: request verified_claims so the identity can be captured.
-                List<String> daonClaimNames = new ArrayList<>(getIdpClaimMappings(context).values());
-                if (!daonClaimNames.isEmpty()) {
-                    url.append("&claims=").append(URLEncoder.encode(
-                            DaonAPIClient.buildClaimsParam(daonClaimNames), StandardCharsets.UTF_8));
-                }
             }
             response.sendRedirect(url.toString());
             context.setCurrentAuthenticator(getName());
@@ -159,11 +159,16 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         }
 
         Map<String, String> props = context.getAuthenticatorProperties();
-        String clientId = props.get(OIDCAuthenticatorConstants.CLIENT_ID);
-        String clientSecret = props.get(OIDCAuthenticatorConstants.CLIENT_SECRET);
-        String tokenEndpoint = props.get(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL);
-        if (StringUtils.isBlank(tokenEndpoint)) {
-            throw new AuthenticationFailedException("Token endpoint not configured in the Daon connection.");
+        // Resolve the OIDC credentials/token endpoint from the referenced Daon IDP connection.
+        Map<String, String> oidcConfig = DaonReferencedIdpUtil.resolveOidcConfig(
+                props.get(DAON_IDP_ID), context.getTenantDomain());
+        String clientId = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_ID);
+        String clientSecret = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_SECRET);
+        String tokenEndpoint = oidcConfig.get(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL);
+        if (StringUtils.isBlank(tokenEndpoint) || StringUtils.isBlank(clientId)) {
+            throw new AuthenticationFailedException(
+                    "Could not resolve the referenced Daon IDP's OIDC configuration. Check the "
+                            + "Daon IDP ID configured on the Daon TrustX Authenticator connection.");
         }
         String redirectUri = buildCallbackUrl(request);
 
@@ -184,14 +189,8 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throw new AuthenticationFailedException("No subject found in Daon ID token.");
         }
 
-        // Enrolment: if the prior-step user is not yet associated with Daon, create the association now.
-        AuthenticatedUser user = context.getLastAuthenticatedUser();
-        String idpName = getIdpName(context);
-        if (user != null && DaonFederatedAssociationUtil.getAssociatedDaonSubject(user, idpName) == null
-                && StringUtils.isNotBlank(preferredUsername)) {
-            DaonFederatedAssociationUtil.createAssociation(user, idpName, preferredUsername);
-        }
-
+        // Login serves only already-enrolled users (verified via login_hint), so the Daon association
+        // already exists — nothing to create here.
         AuthenticatedUser authenticatedUser =
                 AuthenticatedUser.createFederateAuthenticatedUserFromSubjectIdentifier(subject);
         context.setSubject(authenticatedUser);
@@ -202,22 +201,14 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
 
         List<Property> properties = new ArrayList<>();
 
-        properties.add(buildProperty(OIDCAuthenticatorConstants.CLIENT_ID, "Client ID", false,
-                "Daon TrustX OIDC Client ID.", 0));
-        properties.add(buildProperty(OIDCAuthenticatorConstants.CLIENT_SECRET, "Client Secret", true,
-                "Daon TrustX OIDC Client Secret.", 1));
-        properties.add(buildProperty(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL, "Authorization Endpoint URL",
-                false, "Daon TrustX OIDC authorization endpoint URL.", 2));
-        properties.add(buildProperty(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL, "Token Endpoint URL",
-                false, "Daon TrustX OIDC token endpoint URL.", 3));
-        properties.add(buildProperty(IdentityApplicationConstants.Authenticator.OIDC.SCOPES, "Scopes", false,
-                "OIDC scopes to request from Daon (e.g. openid profile document).", 4));
+        properties.add(buildProperty(DAON_IDP_ID, "Daon IDP ID", false,
+                "Resource ID (UUID) of the Daon TrustX IDP connection whose OIDC client credentials and "
+                        + "endpoints this authenticator uses.", 0));
         properties.add(buildProperty(DAON_LOGIN_PD, "Login Process Definition", false,
-                "Daon process definition for verified users (login/auth), as <ProcessDefinitionName:Version>, "
-                        + "sent as acr_values.", 5));
-        properties.add(buildProperty(DAON_ENROL_PD, "Enrol Process Definition", false,
-                "Daon process definition for first-time verification (enrolment/registration), as "
-                        + "<ProcessDefinitionName:Version>, sent as acr_values.", 6));
+                "Daon process definition used for the login and password-recovery (re-verification) "
+                        + "flows, as <ProcessDefinitionName:Version>, sent as acr_values. Enrolment "
+                        + "flows use the enrol process definition configured on the referenced Daon "
+                        + "TrustX IDP.", 1));
         return properties;
     }
 
@@ -235,29 +226,39 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     }
 
     /**
-     * Reads the IDP claim mappings (WSO2 local claim URI -> Daon remote claim name) from the connection.
+     * Resolves the Daon {@code preferred_username} (used as {@code login_hint}) for the identified local
+     * user from its federated association with the Daon IDP.
+     *
+     * <p>The association is stored against a normalised user (bare username + userstore domain + tenant)
+     * by {@link DaonFederatedAssociationListener}, so the identified user is rebuilt the same way via
+     * {@link DaonFederatedAssociationUtil#buildUser(String, String)} before the lookup — otherwise a
+     * domain-qualified {@code AuthenticatedUser} name fails to resolve and an enrolled user is wrongly
+     * treated as not enrolled.</p>
+     *
+     * <p>The association is keyed to the <b>referenced Daon IDP</b> (resolved from {@code daon_idp_id}),
+     * not this authenticator connection, so a user enrolled through one Daon TrustX Authenticator
+     * connection (e.g. the registration one) is recognised by any other connection pointing at the same
+     * Daon IDP (e.g. the login one).</p>
      */
-    private Map<String, String> getIdpClaimMappings(AuthenticationContext context) {
+    private String resolveDaonSubject(AuthenticationContext context) {
 
-        Map<String, String> mappings = new HashMap<>();
-        ExternalIdPConfig idpConfig = context.getExternalIdP();
-        if (idpConfig == null || idpConfig.getClaimMappings() == null) {
-            return mappings;
+        AuthenticatedUser authenticatedUser = context.getLastAuthenticatedUser();
+        if (authenticatedUser == null) {
+            return null;
         }
-        for (ClaimMapping claimMapping : idpConfig.getClaimMappings()) {
-            if (claimMapping.getLocalClaim() != null && claimMapping.getRemoteClaim() != null
-                    && StringUtils.isNotBlank(claimMapping.getLocalClaim().getClaimUri())
-                    && StringUtils.isNotBlank(claimMapping.getRemoteClaim().getClaimUri())) {
-                mappings.put(claimMapping.getLocalClaim().getClaimUri(),
-                        claimMapping.getRemoteClaim().getClaimUri());
-            }
+        String daonIdpName = DaonReferencedIdpUtil.resolveIdpName(
+                context.getAuthenticatorProperties().get(DAON_IDP_ID), context.getTenantDomain());
+        if (StringUtils.isBlank(daonIdpName)) {
+            return null;
         }
-        return mappings;
-    }
-
-    private String getIdpName(AuthenticationContext context) {
-
-        return context.getExternalIdP() != null ? context.getExternalIdP().getIdPName() : null;
+        String username = UserCoreUtil.removeDomainFromName(authenticatedUser.getUserName());
+        String userStoreDomain = authenticatedUser.getUserStoreDomain();
+        if (StringUtils.isNotBlank(userStoreDomain)) {
+            username = userStoreDomain + "/" + username;
+        }
+        User associationUser =
+                DaonFederatedAssociationUtil.buildUser(username, authenticatedUser.getTenantDomain());
+        return DaonFederatedAssociationUtil.getAssociatedDaonSubject(associationUser, daonIdpName);
     }
 
     private String buildCallbackUrl(HttpServletRequest request) {

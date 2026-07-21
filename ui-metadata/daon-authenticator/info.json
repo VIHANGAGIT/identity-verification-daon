@@ -1,10 +1,10 @@
 {
     "id": "daon-authenticator",
     "name": "Daon TrustX Authenticator",
-    "description": "Enable login for users with Daon TrustX authentication.",
+    "description": "Add Daon TrustX login (re-verification) to a flow using a Daon TrustX IdP connection and a login process definition.",
     "image": "assets/images/logos/daon.svg",
     "category": "DEFAULT",
-    "displayOrder": 15,
+    "displayOrder": 16,
     "tags": [ "OIDC" ],
     "type": "identity-provider"
 }

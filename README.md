@@ -3,15 +3,17 @@
 This connector integrates [Daon TrustX](https://www.daon.com/trustx/) into WSO2 Identity Server as a
 standard **federated OIDC Identity Provider (IDP)**. A single Daon connection drives:
 
-- **Self-registration** — provision a new user's profile from Daon-verified claims.
+- **Self-registration** — provision a new user's profile from Daon-verified claims (first-time enrolment).
 - **Invited-user registration** — validate a pre-populated profile against Daon-verified values (lock on mismatch).
-- **Login verification / enrolment** — as a login step, verify an already-enrolled user or enrol a
-  first-time user.
-- **Password-recovery verification** — face re-verification of a verified user.
+- **Login verification** — as a login step, re-verify an already-enrolled user. A user not yet enrolled
+  with Daon fails with an error (enrolment happens via a registration flow, not at login).
+- **Password-recovery verification** — face re-verification of an already-enrolled user.
 
-Which Daon **process definition (PD)** runs is chosen at runtime and sent as `acr_values`
-(`<ProcessDefinitionName:Version>`): the **Enrol PD** for first-time verification (registration /
-login enrolment), the **Login/Auth PD** for already-verified users. The verification state is stored as
+A single Daon **process definition (PD)** is configured on the connection and sent as `acr_values`
+(`<ProcessDefinitionName:Version>`) across every flow. What differs per flow is the rest of the
+request: first-time enrolment (self / invited registration) requests `verified_claims`, while login and
+password recovery re-verify an already-enrolled user with a `login_hint` (the Daon `preferred_username`).
+The verification state is stored as
 a **federated identity association** (local user ↔ Daon subject) in IS's built-in association store — no
 custom user claims and no separate Identity Verification Provider (IDVP) resource.
 
@@ -94,7 +96,7 @@ $IS_HOME/bin/wso2server.sh restart
    URIs. The exact authorized redirect URI is shown on the connection's **Settings** tab after creation.
 4. Enable the required scopes: `openid`, `profile`, `document`.
 5. Note the **Client ID**, **Client Secret**, and the **authorization** and **token** endpoint URLs.
-6. Note the **process definitions** to use for login (verified users) and enrolment (first-time verification).
+6. Note the **process definition** to use for identity verification.
 
 ---
 
@@ -111,8 +113,7 @@ $IS_HOME/bin/wso2server.sh restart
 | **Client ID** / **Client Secret** | From the Daon OIDC client |
 | **Authorization Endpoint URL** / **Token Endpoint URL** | Daon OIDC endpoints |
 | **Scopes** | `openid profile document` |
-| **Login Process Definition** | PD for verified users, `<Name:Version>` |
-| **Enrol Process Definition** | PD for first-time verification, `<Name:Version>` |
+| **Process Definition** | PD used across login, registration and recovery flows, `<Name:Version>` |
 
 3. On the **Settings** tab, copy the **Authorized redirect URI** and register it on the Daon OIDC client.
 
@@ -133,35 +134,40 @@ Add mappings for any additional claims your Daon tenant returns. When Daon retur
 
 ### Step 3 — Add Daon to your flows
 
-- **Self-registration**: add the Daon executor node to the registration flow. It sends the **Enrol PD**,
-  provisions the profile from the verified claims, and records a federated association (⇒ verified).
+- **Self-registration**: add the Daon executor node to the registration flow. It requests
+  `verified_claims`, provisions the profile from the verified claims, and records a federated
+  association (⇒ verified).
 - **Invited-user registration**: add the Daon executor node to the invited-user flow **before the
   set-password step**. When the invited user clicks the magic link / enters the OTP, they are redirected
-  to Daon (**Enrol PD**) to verify the claims the admin defined. Every mapped claim the admin set on the
+  to Daon to verify the claims the admin defined. Every mapped claim the admin set on the
   user is compared against the Daon-verified values (read from the flow user, falling back to the user
   store by user id). **Only a successful match advances to set-password.** A mismatch re-prompts the Daon
   step; after `MAX_VERIFICATION_ATTEMPTS` (default 3, session-scoped) failures the account is locked. On
   success a federated association is recorded (⇒ verified).
 - **Login**: add **Daon TrustX** to an application's Login Flow as a step **after** the user is
-  identified (e.g. after username/password). If the user has a Daon association it sends the **Login PD**
-  with `login_hint`; otherwise it sends the **Enrol PD** and, on success, creates the association
-  (storing the Daon `preferred_username`).
-- **Password recovery**: the Daon executor node sends the **Login PD** with `login_hint`.
+  identified (e.g. after username/password). The user must already be enrolled with Daon (have a Daon
+  association); the step always re-verifies them with a `login_hint` (the Daon `preferred_username` from
+  the association). A user with no Daon association is not enrolled and the login step **fails with an
+  error** — enrolment happens via a registration flow.
+- **Password recovery**: the Daon executor node re-verifies with a `login_hint`. A user with no Daon
+  association fails with an error.
+
+All flows send the same configured **Process Definition** as `acr_values`.
 
 ---
 
 ## Runtime Behaviour
 
 ```
-                        acr_values (process definition) chosen per use
+      the same process definition is sent as acr_values in every flow
   ┌──────────────────────────┬───────────────────────────────────────────┐
-  │ Flow                     │ Process definition                        │
+  │ Flow                     │ Behaviour                                  │
   ├──────────────────────────┼───────────────────────────────────────────┤
-  │ Self-registration        │ Enrol PD → provision profile, associate    │
-  │ Invited-user registration│ Enrol PD → validate profile, associate     │
-  │ Login (associated)       │ Login/Auth PD (+ login_hint)               │
-  │ Login (not associated)   │ Enrol PD → create Daon association          │
-  │ Password recovery        │ Login/Auth PD (+ login_hint)               │
+  │ Self-registration        │ verified_claims → provision profile, assoc │
+  │ Invited-user registration│ verified_claims → validate profile, assoc  │
+  │ Login (enrolled)         │ login_hint (re-verify)                     │
+  │ Login (not enrolled)     │ error — enrol via a registration flow first│
+  │ Password recovery        │ login_hint (re-verify); error if not enrol │
   └──────────────────────────┴───────────────────────────────────────────┘
 ```
 
@@ -176,8 +182,8 @@ federated association (local user ↔ Daon subject), not a user claim.
 |---|---|---|
 | Redirect to Daon fails / missing endpoint | Authorization/token endpoint blank on the connection | Set the OIDC endpoint URLs on the **Settings** tab |
 | `401` on token exchange | Wrong `Client ID` / `Client Secret` | Verify credentials match the Daon OIDC client |
-| No `acr_values` sent | Login/Enrol PD not configured | Set the process definitions on the connection |
-| Login always uses Enrol PD | Daon association not created (enrol never completed, or `FederatedAssociationManager` unavailable) | Confirm the enrol flow completed and that Daon runs after user identification |
+| No `acr_values` sent | Process Definition not configured | Set the process definition on the connection |
+| Login/recovery fails with "not enrolled with Daon" | User has no Daon association (never enrolled via registration, or `FederatedAssociationManager` unavailable) | Enrol the user through a Daon registration flow first; confirm Daon runs after user identification |
 | Verified attributes not provisioned | Attribute mapping missing on the connection | Add the mapping on the **Attributes** tab |
 | Names swapped | Daon emits `<family>^<given>` order | Adjust the split order in `DaonExecutor#populateNameClaims` |
 | Redirect URI mismatch in Daon | Registered `redirect_uri` differs | Use the exact Authorized redirect URI from the **Settings** tab |

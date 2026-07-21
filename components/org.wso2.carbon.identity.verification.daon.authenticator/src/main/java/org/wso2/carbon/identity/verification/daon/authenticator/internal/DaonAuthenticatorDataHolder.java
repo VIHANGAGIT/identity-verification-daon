@@ -20,6 +20,7 @@ package org.wso2.carbon.identity.verification.daon.authenticator.internal;
 
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
+import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
@@ -30,6 +31,7 @@ public class DaonAuthenticatorDataHolder {
     private static RealmService realmService;
     private static OrganizationManager organizationManager;
     private static FederatedAssociationManager federatedAssociationManager;
+    private static IdpManager idpManager;
 
     private DaonAuthenticatorDataHolder() {
     }
@@ -62,5 +64,15 @@ public class DaonAuthenticatorDataHolder {
     public static void setFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
 
         DaonAuthenticatorDataHolder.federatedAssociationManager = federatedAssociationManager;
+    }
+
+    public static IdpManager getIdpManager() {
+
+        return idpManager;
+    }
+
+    public static void setIdpManager(IdpManager idpManager) {
+
+        DaonAuthenticatorDataHolder.idpManager = idpManager;
     }
 }

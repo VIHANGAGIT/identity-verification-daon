@@ -1,0 +1,344 @@
+{
+    "create": {
+        "image": "assets/images/logos/daon.svg",
+        "header": "Daon TrustX IdP",
+        "Subheading": "Create a reusable Daon TrustX OIDC connection with the client credentials and endpoints.",
+        "documentation": "",
+        "modal": {
+            "form": {
+                "fields": [
+                    {
+                        "index": 0,
+                        "ariaLabel": "Daon TrustX IdP Connection Name",
+                        "name": "name",
+                        "label": "Name",
+                        "type": "text",
+                        "required": true,
+                        "placeholder": "Enter a name for the connection.",
+                        "initialValue": "Daon TrustX IdP",
+                        "data-testid": "daon-idp-create-wizard-page-idp-name",
+                        "maxLength": "50",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 1,
+                        "ariaLabel": "Daon TrustX Client ID",
+                        "type": "text",
+                        "name": "clientId",
+                        "label": "Client ID",
+                        "placeholder": "Enter the Client ID of the OIDC client registered in Daon TrustX.",
+                        "required": true,
+                        "autoComplete": true,
+                        "data-testid": "daon-idp-create-wizard-page-idp-client-id",
+                        "maxLength": "100",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 2,
+                        "ariaLabel": "Daon TrustX Client Secret",
+                        "className": "addon-field-wrapper",
+                        "type": "password",
+                        "name": "clientSecret",
+                        "label": "Client Secret",
+                        "placeholder": "Enter the Client Secret of the OIDC client registered in Daon TrustX.",
+                        "required": true,
+                        "autoComplete": true,
+                        "data-testid": "daon-idp-create-wizard-page-idp-client-secret",
+                        "maxLength": "100",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 3,
+                        "ariaLabel": "Daon TrustX Authorization Endpoint URL",
+                        "type": "text",
+                        "name": "oAuth2AuthzEPUrl",
+                        "label": "Authorization Endpoint URL",
+                        "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
+                        "required": true,
+                        "data-testid": "daon-idp-create-wizard-page-authz-url",
+                        "maxLength": "300",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 4,
+                        "ariaLabel": "Daon TrustX Token Endpoint URL",
+                        "type": "text",
+                        "name": "oAuth2TokenEPUrl",
+                        "label": "Token Endpoint URL",
+                        "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
+                        "required": true,
+                        "data-testid": "daon-idp-create-wizard-page-token-url",
+                        "maxLength": "300",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 5,
+                        "ariaLabel": "Daon TrustX Scopes",
+                        "type": "text",
+                        "name": "scopes",
+                        "label": "Scopes",
+                        "placeholder": "openid profile document",
+                        "required": false,
+                        "data-testid": "daon-idp-create-wizard-page-scopes",
+                        "maxLength": "200",
+                        "minLength": "3",
+                        "width": "13"
+                    },
+                    {
+                        "index": 6,
+                        "ariaLabel": "Daon Enrol Process Definition",
+                        "type": "text",
+                        "name": "daon_enrol_pd",
+                        "label": "Enrol Process Definition",
+                        "placeholder": "e.g. EnrolProcess:1",
+                        "required": false,
+                        "data-testid": "daon-idp-create-wizard-page-enrol-pd",
+                        "maxLength": "100",
+                        "minLength": "1",
+                        "width": "13"
+                    }
+                ]
+            },
+            "wizardHelp": {
+                "message": {
+                    "copyInputFields": [
+                        {
+                            "description": "Use the following URL as the <strong>Authorized Redirect URI</strong>.",
+                            "value": "redirect_uri"
+                        }
+                    ],
+                    "header": "Prerequisites",
+                    "paragraphs": [
+                        "Before you begin, register an <strong>OIDC client</strong> in your Daon TrustX tenant and obtain a <strong>Client ID & secret</strong>. Note the Daon <strong>authorization</strong> and <strong>token</strong> endpoint URLs, and the <strong>enrol process definition</strong> used for registration and invited-user enrolment. After creation, reference this connection from a <strong>Daon TrustX Authenticator</strong> connection (used for login) using its resource ID."
+                    ]
+                },
+                "fields": [
+                    {
+                        "fieldName": "Name",
+                        "hint": "Provide a unique name for the connection."
+                    },
+                    {
+                        "fieldName": "Client ID",
+                        "hint": "Provide the <Code class=\"inline-code\">Client ID</Code> of the OIDC client registered in the Daon TrustX tenant."
+                    },
+                    {
+                        "fieldName": "Client Secret",
+                        "hint": "Provide the <Code class=\"inline-code\">Client Secret</Code> of the OIDC client registered in the Daon TrustX tenant."
+                    },
+                    {
+                        "fieldName": "Authorization Endpoint URL",
+                        "hint": "The Daon TrustX OIDC <Code class=\"inline-code\">authorization</Code> endpoint URL."
+                    },
+                    {
+                        "fieldName": "Token Endpoint URL",
+                        "hint": "The Daon TrustX OIDC <Code class=\"inline-code\">token</Code> endpoint URL."
+                    },
+                    {
+                        "fieldName": "Scopes",
+                        "hint": "OIDC scopes to request from Daon. Include <Code class=\"inline-code\">document</Code> to receive verified claims."
+                    },
+                    {
+                        "fieldName": "Enrol Process Definition",
+                        "hint": "Daon process definition used for the enrolment flows (registration and invited-user), sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>. Login and password recovery use the login process definition on the referencing Daon TrustX Authenticator."
+                    }
+                ]
+            }
+        },
+        "properties": [
+            {
+                "key": "ClientId",
+                "value": ""
+            },
+            {
+                "key": "ClientSecret",
+                "value": ""
+            },
+            {
+                "key": "OAuth2AuthzEPUrl",
+                "value": ""
+            },
+            {
+                "key": "OAuth2TokenEPUrl",
+                "value": ""
+            },
+            {
+                "key": "Scopes",
+                "value": "openid profile document"
+            },
+            {
+                "key": "daon_enrol_pd",
+                "value": ""
+            }
+        ]
+    },
+    "edit": {
+        "tabs": {
+            "quickStart": {
+                "heading": "Add Daon TrustX IdP",
+                "subHeading": "Configure the Daon TrustX OIDC connection, then reference it from a Daon TrustX Authenticator connection.",
+                "steps": [
+                    {
+                        "title": "Configure the connection",
+                        "content": "<p>Provide the <strong>Client ID</strong>, <strong>Client Secret</strong>, <strong>endpoint URLs</strong>, <strong>Scopes</strong> and the <strong>Enrol Process Definition</strong> on the <strong>Settings</strong> tab, and register the authorized redirect URI shown there as an allowed redirect URI of the OIDC client in your Daon TrustX tenant.</p>"
+                    },
+                    {
+                        "title": "Add to an enrolment flow",
+                        "content": "<p>Add this <strong>Daon TrustX IdP</strong> to a registration or invited-user flow to enrol and verify users with the configured enrol process definition.</p>"
+                    },
+                    {
+                        "title": "Reference from a login authenticator",
+                        "content": "<p>Copy this connection's <strong>resource ID</strong> and provide it as the <strong>Daon IDP ID</strong> when creating a <strong>Daon TrustX Authenticator</strong> connection. That authenticator supplies the login process definition and is what you add to login flows.</p>"
+                    }
+                ]
+            },
+            "general": [
+                {
+                    "index": 0,
+                    "displayOrder": 1,
+                    "ariaLabel": "name",
+                    "inputType": "resource_name",
+                    "type": "text",
+                    "name": "name",
+                    "label": "Name",
+                    "required": true,
+                    "message": "Connection name is required",
+                    "placeholder": "Daon TrustX IdP",
+                    "validation": true,
+                    "value": "",
+                    "maxLength": "50",
+                    "minLength": "3",
+                    "data-testid": "idp-edit-page-general-settings-form-idp-name",
+                    "hint": "Enter a unique name for this Daon TrustX IdP connection.",
+                    "readOnly": false
+                },
+                {
+                    "index": 1,
+                    "displayOrder": 2,
+                    "type": "textarea",
+                    "name": "description",
+                    "ariaLabel": "description",
+                    "label": "Description",
+                    "required": false,
+                    "placeholder": "Enter a description of the Daon TrustX IdP connection.",
+                    "value": "",
+                    "data-testid": "idp-edit-page-general-settings-form-idp-description",
+                    "maxLength": "300",
+                    "minLength": "3",
+                    "hint": "A text description of the Daon TrustX IdP connection.",
+                    "readOnly": false
+                }
+            ],
+            "settings": [
+                {
+                    "index": 0,
+                    "displayOrder": 1,
+                    "ariaLabel": "Daon TrustX client ID",
+                    "inputType": "default",
+                    "name": "ClientId",
+                    "label": "Client ID",
+                    "placeholder": "Enter the Client ID of the OIDC client registered in Daon TrustX.",
+                    "hint": "The Client ID of the OIDC client registered in the Daon TrustX tenant.",
+                    "required": true,
+                    "readOnly": false,
+                    "value": "",
+                    "maxLength": "100",
+                    "minLength": "3",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-client-id"
+                },
+                {
+                    "index": 1,
+                    "displayOrder": 2,
+                    "ariaLabel": "Daon TrustX client secret",
+                    "className": "addon-field-wrapper",
+                    "inputType": "password",
+                    "type": "password",
+                    "name": "ClientSecret",
+                    "label": "Client Secret",
+                    "placeholder": "Enter the Client Secret of the OIDC client registered in Daon TrustX.",
+                    "hint": "The Client Secret of the OIDC client registered in the Daon TrustX tenant.",
+                    "required": true,
+                    "readOnly": false,
+                    "value": "",
+                    "maxLength": "100",
+                    "minLength": "3",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-client-secret"
+                },
+                {
+                    "index": 2,
+                    "displayOrder": 3,
+                    "ariaLabel": "Daon TrustX authorization endpoint URL",
+                    "inputType": "default",
+                    "name": "OAuth2AuthzEPUrl",
+                    "label": "Authorization Endpoint URL",
+                    "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
+                    "hint": "The Daon TrustX OIDC authorization endpoint URL.",
+                    "required": true,
+                    "readOnly": false,
+                    "value": "",
+                    "maxLength": "300",
+                    "minLength": "3",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-authz-url"
+                },
+                {
+                    "index": 3,
+                    "displayOrder": 4,
+                    "ariaLabel": "Daon TrustX token endpoint URL",
+                    "inputType": "default",
+                    "name": "OAuth2TokenEPUrl",
+                    "label": "Token Endpoint URL",
+                    "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
+                    "hint": "The Daon TrustX OIDC token endpoint URL.",
+                    "required": true,
+                    "readOnly": false,
+                    "value": "",
+                    "maxLength": "300",
+                    "minLength": "3",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-token-url"
+                },
+                {
+                    "index": 4,
+                    "displayOrder": 5,
+                    "ariaLabel": "Daon TrustX scopes",
+                    "inputType": "default",
+                    "name": "Scopes",
+                    "label": "Scopes",
+                    "placeholder": "openid profile document",
+                    "hint": "OIDC scopes to request from Daon. Include 'document' to receive verified claims.",
+                    "required": false,
+                    "readOnly": false,
+                    "value": "openid profile document",
+                    "maxLength": "200",
+                    "minLength": "3",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-scopes"
+                },
+                {
+                    "index": 5,
+                    "displayOrder": 6,
+                    "ariaLabel": "Daon enrol process definition",
+                    "inputType": "default",
+                    "name": "daon_enrol_pd",
+                    "label": "Enrol Process Definition",
+                    "placeholder": "e.g. EnrolProcess:1",
+                    "hint": "Daon process definition used for the enrolment flows (registration and invited-user), as <Name:Version>, sent as acr_values. Login and password recovery use the login process definition on the referencing Daon TrustX Authenticator.",
+                    "required": false,
+                    "readOnly": false,
+                    "value": "",
+                    "maxLength": "100",
+                    "minLength": "1",
+                    "width": "16",
+                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-enrol-pd"
+                }
+            ]
+        }
+    }
+}

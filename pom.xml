@@ -21,12 +21,11 @@
 
     <groupId>org.wso2.carbon.identity.verification</groupId>
     <artifactId>org.wso2.carbon.identity.verification.daon</artifactId>
-    <version>1.0.0-SNAPSHOT</version>
+    <version>1.0.0</version>
     <name>WSO2 Carbon - Daon TrustX Identity Verification Connector</name>
     <packaging>pom</packaging>
     <modules>
         <module>components/org.wso2.carbon.identity.verification.daon.connector</module>
-        <module>components/org.wso2.carbon.identity.verification.daon.api</module>
         <module>components/org.wso2.carbon.identity.verification.daon.authenticator</module>
     </modules>
 
@@ -144,6 +143,11 @@
                 <version>${carbon.identity.framework.version}</version>
             </dependency>
             <dependency>
+                <groupId>org.wso2.carbon.identity.framework</groupId>
+                <artifactId>org.wso2.carbon.identity.user.profile</artifactId>
+                <version>${carbon.identity.framework.version}</version>
+            </dependency>
+            <dependency>
                 <groupId>org.eclipse.osgi</groupId>
                 <artifactId>org.eclipse.osgi.services</artifactId>
                 <version>${org.eclipse.osgi.services.version}</version>
@@ -234,16 +238,6 @@
             <dependency>
                 <groupId>org.wso2.carbon.identity.verification</groupId>
                 <artifactId>org.wso2.carbon.identity.verification.daon.connector</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.wso2.carbon.identity.verification</groupId>
-                <artifactId>org.wso2.carbon.identity.verification.daon.api.common</artifactId>
-                <version>${project.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.wso2.carbon.identity.verification</groupId>
-                <artifactId>org.wso2.carbon.identity.verification.daon.api.v1</artifactId>
                 <version>${project.version}</version>
             </dependency>
             <!-- Testing related dependencies -->

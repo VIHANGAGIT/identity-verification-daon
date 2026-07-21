@@ -1,0 +1,10 @@
+{
+    "id": "daon-idp",
+    "name": "Daon TrustX IdP",
+    "description": "Daon TrustX OIDC connection (client credentials, endpoints and enrol process definition) referenced by Daon TrustX Authenticator connections.",
+    "image": "assets/images/logos/daon.svg",
+    "category": "DEFAULT",
+    "displayOrder": 15,
+    "tags": [ "OIDC" ],
+    "type": "identity-provider"
+}
