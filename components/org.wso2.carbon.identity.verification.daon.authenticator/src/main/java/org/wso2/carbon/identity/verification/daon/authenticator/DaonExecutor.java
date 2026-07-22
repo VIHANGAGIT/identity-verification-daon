@@ -98,8 +98,10 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 && StringUtils.isNotBlank(userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR))) {
             String error = userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR);
             String errorDescription = userInputs.get(OAUTH2_ERROR_DESCRIPTION);
-            LOG.warn("Daon returned an error on the flow callback. error=" + error
-                    + ", error_description=" + errorDescription);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Daon returned an error on the flow callback. error=" + error
+                        + ", error_description=" + errorDescription);
+            }
             ExecutorResponse errorResponse = new ExecutorResponse();
             errorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
             errorResponse.setErrorMessage(DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));

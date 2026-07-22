@@ -183,8 +183,10 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         String error = request.getParameter(OIDCAuthenticatorConstants.OAUTH2_ERROR);
         if (StringUtils.isNotBlank(error)) {
             String errorDescription = request.getParameter(DaonAuthenticatorConstants.OAUTH2_ERROR_DESCRIPTION);
-            LOG.warn("Daon returned an error on the login callback. error=" + error
-                    + ", error_description=" + errorDescription);
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Daon returned an error on the login callback. error=" + error
+                        + ", error_description=" + errorDescription);
+            }
             throw new AuthenticationFailedException(
                     DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));
         }
