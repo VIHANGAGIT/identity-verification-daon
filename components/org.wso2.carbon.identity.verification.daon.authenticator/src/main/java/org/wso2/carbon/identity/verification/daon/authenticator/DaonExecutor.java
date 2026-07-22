@@ -89,6 +89,23 @@ public class DaonExecutor extends OpenIDConnectExecutor {
     @Override
     public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) {
 
+        // Daon can return a standard OAuth2 error on the callback (e.g. the user cancelled/declined, or a
+        // Daon-side failure) in place of a code. Detect it generically and fail with a user-facing message;
+        // otherwise OpenIDConnectExecutor.isInitialRequest treats the missing code as an initial request and
+        // re-redirects to Daon in a loop. Log the raw values so Daon-specific codes can be mapped later.
+        Map<String, String> userInputs = flowExecutionContext.getUserInputData();
+        if (userInputs != null
+                && StringUtils.isNotBlank(userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR))) {
+            String error = userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR);
+            String errorDescription = userInputs.get(OAUTH2_ERROR_DESCRIPTION);
+            LOG.warn("Daon returned an error on the flow callback. error=" + error
+                    + ", error_description=" + errorDescription);
+            ExecutorResponse errorResponse = new ExecutorResponse();
+            errorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
+            errorResponse.setErrorMessage(DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));
+            return errorResponse;
+        }
+
         flowExecutionContext.setPortalUrl(buildPortalUrl(flowExecutionContext.getTenantDomain()));
         prepareRequest(flowExecutionContext);
         // Password recovery re-verifies an already-Daon-enrolled user via login_hint. Without a Daon
@@ -134,11 +151,12 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         Map<String, String> props = flowExecutionContext.getAuthenticatorProperties();
         Map<String, String> enriched = new HashMap<>(props);
 
-        // The OIDC credentials/endpoints live on the referenced Daon IDP connection, not on this
-        // authenticator connection; resolve them and inject them so the parent OpenIDConnectExecutor
-        // builds the request against the Daon endpoints.
-        Map<String, String> oidcConfig = DaonReferencedIdpUtil.resolveOidcConfig(
-                props.get(DAON_IDP_ID), flowExecutionContext.getTenantDomain());
+        // A referencing login connection sets daon_idp_id and its OIDC credentials/endpoints live on the
+        // referenced Daon Identity Verifier connection; resolve and inject them so the parent
+        // OpenIDConnectExecutor builds the request against the Daon endpoints. A self-contained Identity
+        // Verification connection already carries these on its own props, so injection is a no-op.
+        Map<String, String> oidcConfig =
+                DaonReferencedIdpUtil.resolveEffectiveOidcConfig(props, flowExecutionContext.getTenantDomain());
         copyIfPresent(oidcConfig, enriched, OIDCAuthenticatorConstants.CLIENT_ID);
         copyIfPresent(oidcConfig, enriched, OIDCAuthenticatorConstants.CLIENT_SECRET);
         copyIfPresent(oidcConfig, enriched, OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL);
@@ -151,11 +169,11 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         }
 
         boolean recovery = FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType());
-        // The enrolment flows (registration, invited-user) send the enrol process definition configured
-        // on the referenced Daon IDP; password recovery re-verifies an already-enrolled user and sends
-        // the login process definition configured on this authenticator connection. Either is sent to
-        // Daon as acr_values.
-        String processDefinition = recovery ? props.get(DAON_LOGIN_PD) : oidcConfig.get(DAON_ENROL_PD);
+        // The enrolment flows (registration, invited-user) run on a self-contained Identity Verifier
+        // connection and send its enrol process definition; password recovery runs on a login connection
+        // and sends its login process definition (re-verification). Both are read from the connection's
+        // own props and sent to Daon as acr_values.
+        String processDefinition = recovery ? props.get(DAON_LOGIN_PD) : props.get(DAON_ENROL_PD);
         if (StringUtils.isNotBlank(processDefinition)) {
             enriched.put(DAON_SELECTED_PD, processDefinition);
         }
@@ -281,11 +299,10 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
         // Record the Daon verification as a federated association (local user <-> Daon subject),
         // persisted by DaonFederatedAssociationListener once the user exists. No custom user claims.
-        // The association is keyed to the referenced Daon IDP (not this authenticator connection) so it
-        // is shared across every connection pointing at the same Daon IDP.
-        String daonIdpName = DaonReferencedIdpUtil.resolveIdpName(
-                flowExecutionContext.getAuthenticatorProperties().get(DAON_IDP_ID),
-                flowExecutionContext.getTenantDomain());
+        // The association is keyed on the Daon IDP name — the self-contained Identity Verifier
+        // connection's own name for enrolment — so it is shared with every login connection referencing
+        // it (which resolve the same name via daon_idp_id).
+        String daonIdpName = resolveDaonIdpName(flowExecutionContext);
         if (StringUtils.isNotBlank(preferredUsername) && StringUtils.isNotBlank(daonIdpName)) {
             flowExecutionContext.setProperty(DAON_FED_IDP_NAME, daonIdpName);
             flowExecutionContext.setProperty(DAON_FED_SUBJECT, preferredUsername);
@@ -542,15 +559,30 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         if (StringUtils.isBlank(username)) {
             return null;
         }
-        // Look up the association against the referenced Daon IDP (shared across connections), not this
-        // authenticator connection.
-        String daonIdpName = DaonReferencedIdpUtil.resolveIdpName(
-                context.getAuthenticatorProperties().get(DAON_IDP_ID), context.getTenantDomain());
+        // Look up the association against the Daon IDP the enrolment was recorded under: the referenced
+        // Identity Verifier connection (via daon_idp_id) for a login connection, shared across every
+        // login connection referencing the same one.
+        String daonIdpName = resolveDaonIdpName(context);
         if (StringUtils.isBlank(daonIdpName)) {
             return null;
         }
         User user = DaonFederatedAssociationUtil.buildUser(username, context.getTenantDomain());
         return DaonFederatedAssociationUtil.getAssociatedDaonSubject(user, daonIdpName);
+    }
+
+    /**
+     * Resolves the Daon IDP name the federated association is keyed on: the referenced Identity
+     * Verification connection's name when {@code daon_idp_id} is set (login connection), otherwise this
+     * connection's own name (self-contained Identity Verifier connection).
+     */
+    private String resolveDaonIdpName(FlowExecutionContext context) {
+
+        String idpResourceId = context.getAuthenticatorProperties().get(DAON_IDP_ID);
+        if (StringUtils.isNotBlank(idpResourceId)) {
+            return DaonReferencedIdpUtil.resolveIdpName(idpResourceId, context.getTenantDomain());
+        }
+        return context.getExternalIdPConfig() != null
+                ? context.getExternalIdPConfig().getIdPName() : null;
     }
 
     private String buildPortalUrl(String tenantDomain) {

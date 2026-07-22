@@ -1,0 +1,10 @@
+{
+    "id": "daon-idv",
+    "name": "Daon TrustX Identity Verifier",
+    "description": "Daon TrustX identity-verification connection (OIDC credentials, endpoints and enrol process definition). Add it to registration and invited-user flows to enrol and verify users; reference it from Daon TrustX Authenticator login connections.",
+    "image": "assets/images/logos/daon.svg",
+    "category": "DEFAULT",
+    "displayOrder": 15,
+    "tags": [ "OIDC" ],
+    "type": "identity-provider"
+}

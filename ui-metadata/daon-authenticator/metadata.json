@@ -2,7 +2,7 @@
     "create": {
         "image": "assets/images/logos/daon.svg",
         "header": "Daon TrustX Authenticator",
-        "Subheading": "Add Daon TrustX identity verification and login to a flow using a Daon TrustX IdP connection.",
+        "Subheading": "Add Daon TrustX identity verification and login to a flow using a Daon Identity Verifier connection.",
         "documentation": "",
         "modal": {
             "form": {
@@ -23,11 +23,11 @@
                     },
                     {
                         "index": 1,
-                        "ariaLabel": "Daon IDP ID",
+                        "ariaLabel": "Daon Verifier ID",
                         "type": "text",
                         "name": "daon_idp_id",
-                        "label": "Daon IDP ID",
-                        "placeholder": "Resource ID (UUID) of the Daon TrustX IdP connection.",
+                        "label": "Daon Verifier ID",
+                        "placeholder": "Resource ID (UUID) of the Daon Identity Verifier connection.",
                         "required": true,
                         "data-testid": "daon-authenticator-create-wizard-page-idp-id",
                         "maxLength": "100",
@@ -53,7 +53,7 @@
                 "message": {
                     "header": "Prerequisites",
                     "paragraphs": [
-                        "First create a <strong>Daon TrustX IdP</strong> connection (holding the OIDC client credentials, endpoints and the <strong>enrol process definition</strong>). Then copy its <strong>resource ID</strong> (the id shown in the connection details / console URL) and provide it here as the <strong>Daon IDP ID</strong>, along with the <strong>login process definition</strong> to send as acr_values during login and password recovery."
+                        "First create a <strong>Daon Identity Verifier</strong> connection (holding the OIDC client credentials, endpoints and the <strong>enrol process definition</strong>). Then copy its <strong>resource ID</strong> (the id shown in the connection details / console URL) and provide it here as the <strong>Daon Verifier ID</strong>, along with the <strong>login process definition</strong> to send as acr_values during login and password recovery."
                     ]
                 },
                 "fields": [
@@ -62,12 +62,12 @@
                         "hint": "Provide a unique name for the connection."
                     },
                     {
-                        "fieldName": "Daon IDP ID",
-                        "hint": "Resource ID (UUID) of the <Code class=\"inline-code\">Daon TrustX IdP</Code> connection whose OIDC client credentials and endpoints this authenticator uses."
+                        "fieldName": "Daon Verifier ID",
+                        "hint": "Resource ID (UUID) of the <Code class=\"inline-code\">Daon Identity Verifier</Code> connection whose OIDC client credentials and endpoints this authenticator uses."
                     },
                     {
                         "fieldName": "Login Process Definition",
-                        "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>. Enrolment uses the enrol process definition configured on the referenced Daon TrustX IdP."
+                        "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>. Enrolment uses the enrol process definition configured on the referenced Daon Identity Verifier."
                     }
                 ]
             }
@@ -91,7 +91,7 @@
                 "steps": [
                     {
                         "title": "Configure the connection",
-                        "content": "<p>Provide the <strong>Daon IDP ID</strong> (resource ID of the Daon TrustX IdP connection) and the <strong>Login Process Definition</strong> on the <strong>Settings</strong> tab. The OIDC client credentials, endpoints, scopes and the enrol process definition are resolved from the referenced Daon TrustX IdP.</p>"
+                        "content": "<p>Provide the <strong>Daon Verifier ID</strong> (resource ID of the Daon Identity Verifier connection) and the <strong>Login Process Definition</strong> on the <strong>Settings</strong> tab. The OIDC client credentials, endpoints and scopes are resolved from the referenced Daon Identity Verifier connection.</p>"
                     },
                     {
                         "title": "Map attributes",
@@ -99,7 +99,7 @@
                     },
                     {
                         "title": "Add Daon TrustX to a login flow",
-                        "content": "<p>Add this <strong>Daon TrustX Authenticator</strong> to an application's <strong>Login Flow</strong> as a step after the user is identified, to re-verify users already enrolled with the referenced Daon TrustX IdP. Enrolment (registration / invited-user) is driven by the Daon TrustX IdP connection itself.</p>"
+                        "content": "<p>Add this <strong>Daon TrustX Authenticator</strong> to an application's <strong>Login Flow</strong> as a step after the user is identified, to re-verify users already enrolled with the referenced Daon Identity Verifier. Enrolment (registration / invited-user) is driven by the Daon Identity Verifier connection itself.</p>"
                     }
                 ]
             },
@@ -144,12 +144,12 @@
                 {
                     "index": 0,
                     "displayOrder": 1,
-                    "ariaLabel": "Daon IDP ID",
+                    "ariaLabel": "Daon Verifier ID",
                     "inputType": "default",
                     "name": "daon_idp_id",
-                    "label": "Daon IDP ID",
-                    "placeholder": "Resource ID (UUID) of the Daon TrustX IdP connection.",
-                    "hint": "Resource ID (UUID) of the Daon TrustX IdP connection whose OIDC client credentials and endpoints this authenticator uses.",
+                    "label": "Daon Verifier ID",
+                    "placeholder": "Resource ID (UUID) of the Daon Identity Verifier connection.",
+                    "hint": "Resource ID (UUID) of the Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -166,7 +166,7 @@
                     "name": "daon_login_pd",
                     "label": "Login Process Definition",
                     "placeholder": "e.g. LoginProcess:1",
-                    "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, as <Name:Version>, sent as acr_values. Enrolment uses the enrol process definition on the referenced Daon TrustX IdP.",
+                    "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, as <Name:Version>, sent as acr_values. Enrolment uses the enrol process definition on the referenced Daon Identity Verifier.",
                     "required": false,
                     "readOnly": false,
                     "value": "",

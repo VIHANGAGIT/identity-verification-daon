@@ -24,6 +24,7 @@ import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.common.model.FederatedAuthenticatorConfig;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.Property;
+import org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants;
 import org.wso2.carbon.identity.verification.daon.authenticator.internal.DaonAuthenticatorDataHolder;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdpManager;
@@ -32,19 +33,39 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Resolves the OIDC client configuration of the referenced Daon OIDC IDP connection.
+ * Resolves the OIDC client configuration and IDP name for a Daon connection.
  *
- * <p>The Daon TrustX Authenticator connection stores only the referenced Daon IDP's resource id
- * ({@code daon_idp_id}) and the login process definition ({@code daon_login_pd}); it carries no OIDC
- * credentials. Both the login authenticator and the flow executor call this helper to load the client
- * id/secret, authorize/token endpoints, scopes and enrol process definition ({@code daon_enrol_pd})
- * from the referenced IDP (by resource id) at runtime.</p>
+ * <p>A Daon connection is either <b>self-contained</b> (a Daon Identity Verifier connection
+ * that carries its own OIDC credentials, endpoints, scopes and enrol process definition) or
+ * <b>referencing</b> (a Daon TrustX Authenticator login connection that stores only a
+ * {@code daon_idp_id} pointing at a self-contained connection plus its own login process definition).
+ * For a referencing connection, both the login authenticator and the flow executor call this helper to
+ * load the client id/secret, authorize/token endpoints and scopes from the referenced connection (by
+ * resource id) at runtime; for a self-contained connection they use its own properties directly.</p>
  */
 final class DaonReferencedIdpUtil {
 
     private static final Log LOG = LogFactory.getLog(DaonReferencedIdpUtil.class);
 
     private DaonReferencedIdpUtil() {
+    }
+
+    /**
+     * Resolves the effective OIDC configuration for a Daon connection: the referenced Identity
+     * Verification connection's authenticator properties when {@code daon_idp_id} is set (referencing
+     * login connection), otherwise the connection's own properties (self-contained connection).
+     *
+     * @param props        the connection's own authenticator properties.
+     * @param tenantDomain tenant the connection belongs to.
+     * @return the effective OIDC configuration (own or referenced).
+     */
+    static Map<String, String> resolveEffectiveOidcConfig(Map<String, String> props, String tenantDomain) {
+
+        String idpResourceId = props.get(DaonAuthenticatorConstants.DAON_IDP_ID);
+        if (StringUtils.isNotBlank(idpResourceId)) {
+            return resolveOidcConfig(idpResourceId, tenantDomain);
+        }
+        return props;
     }
 
     /**
@@ -96,16 +117,16 @@ final class DaonReferencedIdpUtil {
     }
 
     /**
-     * Resolves the name of the referenced Daon IDP connection (by resource id).
+     * Resolves the name of the referenced Daon Identity Verifier connection (by resource id).
      *
-     * <p>The Daon verification state is stored as a federated association against this referenced Daon
-     * IDP — never against the authenticator connection itself — so that every authenticator connection
-     * pointing at the same Daon IDP (e.g. separate login and registration connections) shares one
-     * enrolment state.</p>
+     * <p>The Daon verification state is stored as a federated association keyed on the Identity
+     * Verification connection's name (where enrolment happens), so that every login connection
+     * referencing it via {@code daon_idp_id} shares one enrolment state. A self-contained connection
+     * keys on its own name instead (resolved by the caller, not here).</p>
      *
-     * @param idpResourceId resource id (UUID) of the referenced Daon IDP connection.
+     * @param idpResourceId resource id (UUID) of the referenced Daon Identity Verifier connection.
      * @param tenantDomain  tenant the connection belongs to.
-     * @return the referenced IDP's name, or {@code null} if it cannot be resolved.
+     * @return the referenced connection's name, or {@code null} if it cannot be resolved.
      */
     static String resolveIdpName(String idpResourceId, String tenantDomain) {
 

@@ -1,7 +1,7 @@
 {
     "id": "daon-authenticator",
     "name": "Daon TrustX Authenticator",
-    "description": "Add Daon TrustX login (re-verification) to a flow, using a Daon TrustX IdP connection and a login process definition.",
+    "description": "Add Daon TrustX login (re-verification) to a flow, using a Daon Identity Verifier connection and a login process definition.",
     "image": "assets/images/logos/daon.svg",
     "category": "DEFAULT",
     "displayOrder": 16,
@@ -28,8 +28,8 @@
                     "properties": [
                         {
                             "key": "daon_idp_id",
-                            "displayName": "Daon IDP ID",
-                            "description": "Resource ID (UUID) of the Daon TrustX IdP connection whose OIDC client credentials and endpoints this authenticator uses.",
+                            "displayName": "Daon Verifier ID",
+                            "description": "Resource ID (UUID) of the Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses.",
                             "type": "STRING",
                             "displayOrder": 1,
                             "regex": ".*",
@@ -42,7 +42,7 @@
                         {
                             "key": "daon_login_pd",
                             "displayName": "Login Process Definition",
-                            "description": "Daon process definition used for the login and password-recovery (re-verification) flows, as <ProcessDefinitionName:Version>. Sent as acr_values. Enrolment flows use the enrol process definition configured on the referenced Daon TrustX IdP.",
+                            "description": "Daon process definition used for the login and password-recovery (re-verification) flows, as <ProcessDefinitionName:Version>. Sent as acr_values. Enrolment flows use the enrol process definition configured on the referenced Daon Identity Verifier.",
                             "type": "STRING",
                             "displayOrder": 2,
                             "regex": ".*",

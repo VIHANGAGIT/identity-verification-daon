@@ -40,6 +40,14 @@ public class DaonAuthenticatorConstants {
     public static final String PARAM_SESSION_STATE = "session_state";
 
     /**
+     * Standard OAuth2/OIDC error parameter returned on the callback when the user cancels/declines
+     * verification or Daon fails (in place of {@code code}). The error code itself is read via
+     * {@code OIDCAuthenticatorConstants.OAUTH2_ERROR}; there is no stock constant for the human-readable
+     * {@code error_description}, so it is defined here.
+     */
+    public static final String OAUTH2_ERROR_DESCRIPTION = "error_description";
+
+    /**
      * Authenticator configuration property key for the Daon <b>login</b> process definition (PD),
      * configured on the Daon TrustX Authenticator connection. It drives the login (re-verification)
      * flow and the password-recovery flow, and is sent to Daon as {@code acr_values} in the format

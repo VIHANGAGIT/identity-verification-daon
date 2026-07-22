@@ -1,22 +1,22 @@
 {
     "create": {
         "image": "assets/images/logos/daon.svg",
-        "header": "Daon TrustX IdP",
-        "Subheading": "Create a reusable Daon TrustX OIDC connection with the client credentials and endpoints.",
+        "header": "Daon TrustX Identity Verifier",
+        "Subheading": "Create a Daon TrustX identity-verification connection with the OIDC client credentials, endpoints and enrol process definition.",
         "documentation": "",
         "modal": {
             "form": {
                 "fields": [
                     {
                         "index": 0,
-                        "ariaLabel": "Daon TrustX IdP Connection Name",
+                        "ariaLabel": "Daon TrustX Identity Verifier Connection Name",
                         "name": "name",
                         "label": "Name",
                         "type": "text",
                         "required": true,
                         "placeholder": "Enter a name for the connection.",
-                        "initialValue": "Daon TrustX IdP",
-                        "data-testid": "daon-idp-create-wizard-page-idp-name",
+                        "initialValue": "Daon TrustX Identity Verifier",
+                        "data-testid": "daon-idv-create-wizard-page-idp-name",
                         "maxLength": "50",
                         "minLength": "3",
                         "width": "13"
@@ -30,7 +30,7 @@
                         "placeholder": "Enter the Client ID of the OIDC client registered in Daon TrustX.",
                         "required": true,
                         "autoComplete": true,
-                        "data-testid": "daon-idp-create-wizard-page-idp-client-id",
+                        "data-testid": "daon-idv-create-wizard-page-idp-client-id",
                         "maxLength": "100",
                         "minLength": "3",
                         "width": "13"
@@ -45,7 +45,7 @@
                         "placeholder": "Enter the Client Secret of the OIDC client registered in Daon TrustX.",
                         "required": true,
                         "autoComplete": true,
-                        "data-testid": "daon-idp-create-wizard-page-idp-client-secret",
+                        "data-testid": "daon-idv-create-wizard-page-idp-client-secret",
                         "maxLength": "100",
                         "minLength": "3",
                         "width": "13"
@@ -58,7 +58,7 @@
                         "label": "Authorization Endpoint URL",
                         "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
                         "required": true,
-                        "data-testid": "daon-idp-create-wizard-page-authz-url",
+                        "data-testid": "daon-idv-create-wizard-page-authz-url",
                         "maxLength": "300",
                         "minLength": "3",
                         "width": "13"
@@ -71,7 +71,7 @@
                         "label": "Token Endpoint URL",
                         "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
                         "required": true,
-                        "data-testid": "daon-idp-create-wizard-page-token-url",
+                        "data-testid": "daon-idv-create-wizard-page-token-url",
                         "maxLength": "300",
                         "minLength": "3",
                         "width": "13"
@@ -84,7 +84,7 @@
                         "label": "Scopes",
                         "placeholder": "openid profile document",
                         "required": false,
-                        "data-testid": "daon-idp-create-wizard-page-scopes",
+                        "data-testid": "daon-idv-create-wizard-page-scopes",
                         "maxLength": "200",
                         "minLength": "3",
                         "width": "13"
@@ -97,7 +97,7 @@
                         "label": "Enrol Process Definition",
                         "placeholder": "e.g. EnrolProcess:1",
                         "required": false,
-                        "data-testid": "daon-idp-create-wizard-page-enrol-pd",
+                        "data-testid": "daon-idv-create-wizard-page-enrol-pd",
                         "maxLength": "100",
                         "minLength": "1",
                         "width": "13"
@@ -114,7 +114,7 @@
                     ],
                     "header": "Prerequisites",
                     "paragraphs": [
-                        "Before you begin, register an <strong>OIDC client</strong> in your Daon TrustX tenant and obtain a <strong>Client ID & secret</strong>. Note the Daon <strong>authorization</strong> and <strong>token</strong> endpoint URLs, and the <strong>enrol process definition</strong> used for registration and invited-user enrolment. After creation, reference this connection from a <strong>Daon TrustX Authenticator</strong> connection (used for login) using its resource ID."
+                        "Before you begin, register an <strong>OIDC client</strong> in your Daon TrustX tenant and obtain a <strong>Client ID & secret</strong>. Note the Daon <strong>authorization</strong> and <strong>token</strong> endpoint URLs, and the <strong>enrol process definition</strong> used for registration and invited-user enrolment. Add this connection to your registration/invited-user flows to enrol and verify users. For login, reference this connection from a <strong>Daon TrustX Authenticator</strong> connection using its resource ID."
                     ]
                 },
                 "fields": [
@@ -179,20 +179,24 @@
     "edit": {
         "tabs": {
             "quickStart": {
-                "heading": "Add Daon TrustX IdP",
-                "subHeading": "Configure the Daon TrustX OIDC connection, then reference it from a Daon TrustX Authenticator connection.",
+                "heading": "Add Daon TrustX Identity Verifier",
+                "subHeading": "Configure the Daon TrustX connection, add it to your enrolment flows, then reference it from Daon TrustX Authenticator login connections.",
                 "steps": [
                     {
                         "title": "Configure the connection",
                         "content": "<p>Provide the <strong>Client ID</strong>, <strong>Client Secret</strong>, <strong>endpoint URLs</strong>, <strong>Scopes</strong> and the <strong>Enrol Process Definition</strong> on the <strong>Settings</strong> tab, and register the authorized redirect URI shown there as an allowed redirect URI of the OIDC client in your Daon TrustX tenant.</p>"
                     },
                     {
+                        "title": "Map attributes",
+                        "content": "<p>On the <strong>Attributes</strong> tab, map Daon verified claims (e.g. <Code class=\"inline-code\">given_name</Code>, <Code class=\"inline-code\">family_name</Code>, <Code class=\"inline-code\">birthdate</Code>) to WSO2 local claims. These drive provisioning and verification.</p>"
+                    },
+                    {
                         "title": "Add to an enrolment flow",
-                        "content": "<p>Add this <strong>Daon TrustX IdP</strong> to a registration or invited-user flow to enrol and verify users with the configured enrol process definition.</p>"
+                        "content": "<p>Add this <strong>Daon TrustX Identity Verifier</strong> connection to a registration or invited-user flow to enrol and verify users with the configured enrol process definition.</p>"
                     },
                     {
                         "title": "Reference from a login authenticator",
-                        "content": "<p>Copy this connection's <strong>resource ID</strong> and provide it as the <strong>Daon IDP ID</strong> when creating a <strong>Daon TrustX Authenticator</strong> connection. That authenticator supplies the login process definition and is what you add to login flows.</p>"
+                        "content": "<p>Copy this connection's <strong>resource ID</strong> and provide it as the <strong>Daon TrustX Verifier ID</strong> when creating a <strong>Daon TrustX Authenticator</strong> connection. That authenticator supplies the login process definition and is what you add to login flows; multiple login connections can reference this same connection and share one enrolment.</p>"
                     }
                 ]
             },
@@ -207,13 +211,13 @@
                     "label": "Name",
                     "required": true,
                     "message": "Connection name is required",
-                    "placeholder": "Daon TrustX IdP",
+                    "placeholder": "Daon TrustX Identity Verifier",
                     "validation": true,
                     "value": "",
                     "maxLength": "50",
                     "minLength": "3",
                     "data-testid": "idp-edit-page-general-settings-form-idp-name",
-                    "hint": "Enter a unique name for this Daon TrustX IdP connection.",
+                    "hint": "Enter a unique name for this Daon TrustX Identity Verifier connection.",
                     "readOnly": false
                 },
                 {
@@ -224,12 +228,12 @@
                     "ariaLabel": "description",
                     "label": "Description",
                     "required": false,
-                    "placeholder": "Enter a description of the Daon TrustX IdP connection.",
+                    "placeholder": "Enter a description of the Daon TrustX Identity Verifier connection.",
                     "value": "",
                     "data-testid": "idp-edit-page-general-settings-form-idp-description",
                     "maxLength": "300",
                     "minLength": "3",
-                    "hint": "A text description of the Daon TrustX IdP connection.",
+                    "hint": "A text description of the Daon TrustX Identity Verifier connection.",
                     "readOnly": false
                 }
             ],
@@ -249,7 +253,7 @@
                     "maxLength": "100",
                     "minLength": "3",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-client-id"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-client-id"
                 },
                 {
                     "index": 1,
@@ -268,7 +272,7 @@
                     "maxLength": "100",
                     "minLength": "3",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-client-secret"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-client-secret"
                 },
                 {
                     "index": 2,
@@ -285,7 +289,7 @@
                     "maxLength": "300",
                     "minLength": "3",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-authz-url"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-authz-url"
                 },
                 {
                     "index": 3,
@@ -302,7 +306,7 @@
                     "maxLength": "300",
                     "minLength": "3",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-token-url"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-token-url"
                 },
                 {
                     "index": 4,
@@ -319,7 +323,7 @@
                     "maxLength": "200",
                     "minLength": "3",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-scopes"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-scopes"
                 },
                 {
                     "index": 5,
@@ -336,7 +340,7 @@
                     "maxLength": "100",
                     "minLength": "1",
                     "width": "16",
-                    "data-testid": "idp-edit-page-authenticator-settings-OpenIDConnectAuthenticator-content-enrol-pd"
+                    "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-enrol-pd"
                 }
             ]
         }

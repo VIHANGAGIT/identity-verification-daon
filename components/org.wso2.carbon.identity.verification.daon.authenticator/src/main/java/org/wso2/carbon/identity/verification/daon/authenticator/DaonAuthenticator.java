@@ -19,6 +19,8 @@
 package org.wso2.carbon.identity.verification.daon.authenticator;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.json.JSONObject;
 import org.wso2.carbon.identity.application.authentication.framework.FederatedApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
@@ -48,28 +50,39 @@ import javax.servlet.http.HttpServletResponse;
 
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.ACR_VALUES_PARAM;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.COMMON_AUTH_ENDPOINT;
+import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_ENROL_PD;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_IDP_ID;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_LOGIN_PD;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.PARAM_CODE;
 import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.PARAM_STATE;
 
 /**
- * Daon TrustX federated authenticator (login step) for the Daon IDP.
+ * Daon TrustX federated authenticator (login step).
  *
- * <p>Performs an OIDC Authorization Code flow against Daon. Client credentials, endpoints and scope
- * are read from the connection's own authenticator config (standard federated OIDC keys).</p>
+ * <p>Performs an OIDC Authorization Code flow against Daon. A connection can be configured in one of two
+ * ways, distinguished by whether it sets {@code daon_idp_id}:</p>
+ * <ul>
+ *   <li><b>Self-contained</b> (a "Daon Identity Verifier" connection): no {@code daon_idp_id};
+ *       the OIDC client credentials, endpoints and scope live on the connection's own authenticator
+ *       config, and the federated association is keyed on this connection's own name.</li>
+ *   <li><b>Referencing</b> (a "Daon TrustX Authenticator" login connection): sets {@code daon_idp_id} to
+ *       the resource id of a self-contained Daon Identity Verifier connection; the OIDC
+ *       config and the association key (IDP name) are resolved from that referenced connection, so every
+ *       login connection referencing the same one shares a single enrolment.</li>
+ * </ul>
  *
  * <p>Daon runs as a step after the user is identified, and only for users already enrolled with Daon —
- * i.e. those with a <b>federated association</b> with this Daon IDP (no custom user claims). The OIDC
- * request always carries the Daon {@code preferred_username} (from the association) as {@code login_hint}
- * for face re-verification, together with the configured <b>login process definition</b> (sent as
+ * i.e. those with a <b>federated association</b> with the (own or referenced) Daon IDP. The OIDC request
+ * always carries the Daon {@code preferred_username} (from the association) as {@code login_hint} for
+ * face re-verification, together with the configured <b>login process definition</b> (sent as
  * {@code acr_values}). A user with no Daon association is not enrolled: the login flow fails with an
- * error rather than attempting enrolment (enrolment happens in the registration flow).</p>
+ * error rather than attempting enrolment (enrolment happens in the registration/invited-user flow).</p>
  */
 public class DaonAuthenticator extends OpenIDConnectAuthenticator
         implements FederatedApplicationAuthenticator {
 
     private static final long serialVersionUID = 1L;
+    private static final Log LOG = LogFactory.getLog(DaonAuthenticator.class);
 
     @Override
     public String getName() {
@@ -83,8 +96,13 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
 
     @Override
     public boolean canHandle(HttpServletRequest request) {
+        // Claim both the success callback (code + state) and the OAuth2 error callback (error + state), so an
+        // error is handled here instead of the framework silently re-initiating (redirecting back to Daon).
+        if (StringUtils.isBlank(request.getParameter(PARAM_STATE))) {
+            return false;
+        }
         return StringUtils.isNotBlank(request.getParameter(PARAM_CODE))
-                && StringUtils.isNotBlank(request.getParameter(PARAM_STATE));
+                || StringUtils.isNotBlank(request.getParameter(OIDCAuthenticatorConstants.OAUTH2_ERROR));
     }
 
     @Override
@@ -98,16 +116,17 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throws AuthenticationFailedException {
 
         Map<String, String> props = context.getAuthenticatorProperties();
-        // OIDC credentials/endpoints live on the referenced Daon IDP connection, not on this
-        // authenticator connection; resolve them by the configured Daon IDP id.
-        Map<String, String> oidcConfig = DaonReferencedIdpUtil.resolveOidcConfig(
-                props.get(DAON_IDP_ID), context.getTenantDomain());
+        // A referencing login connection resolves its OIDC config from the referenced Daon TrustX
+        // Identity Verifier connection; a self-contained connection carries it on its own props.
+        Map<String, String> oidcConfig =
+                DaonReferencedIdpUtil.resolveEffectiveOidcConfig(props, context.getTenantDomain());
         String clientId = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_ID);
         String authEndpoint = oidcConfig.get(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL);
         if (StringUtils.isBlank(authEndpoint) || StringUtils.isBlank(clientId)) {
             throw new AuthenticationFailedException(
-                    "Could not resolve the referenced Daon IDP's OIDC configuration. Check the "
-                            + "Daon IDP ID configured on the Daon TrustX Authenticator connection.");
+                    "Could not resolve the Daon OIDC configuration. For a login connection, check the "
+                            + "Daon Verifier ID it references; for a Daon Identity Verifier "
+                            + "connection, check its own client id and endpoint configuration.");
         }
         String scope = oidcConfig.get(IdentityApplicationConstants.Authenticator.OIDC.SCOPES);
         if (StringUtils.isBlank(scope)) {
@@ -158,17 +177,31 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throw new AuthenticationFailedException("State parameter mismatch in Daon callback.");
         }
 
+        // Daon can return a standard OAuth2 error (in place of a code) when the user cancels/declines the
+        // verification or Daon fails. Handle it generically off the standard error param; log the raw
+        // values so Daon's specific verification-failure codes can be mapped later if needed.
+        String error = request.getParameter(OIDCAuthenticatorConstants.OAUTH2_ERROR);
+        if (StringUtils.isNotBlank(error)) {
+            String errorDescription = request.getParameter(DaonAuthenticatorConstants.OAUTH2_ERROR_DESCRIPTION);
+            LOG.warn("Daon returned an error on the login callback. error=" + error
+                    + ", error_description=" + errorDescription);
+            throw new AuthenticationFailedException(
+                    DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));
+        }
+
         Map<String, String> props = context.getAuthenticatorProperties();
-        // Resolve the OIDC credentials/token endpoint from the referenced Daon IDP connection.
-        Map<String, String> oidcConfig = DaonReferencedIdpUtil.resolveOidcConfig(
-                props.get(DAON_IDP_ID), context.getTenantDomain());
+        // Resolve the OIDC credentials/token endpoint from the referenced connection (login connection)
+        // or from this connection's own props (self-contained Identity Verifier connection).
+        Map<String, String> oidcConfig =
+                DaonReferencedIdpUtil.resolveEffectiveOidcConfig(props, context.getTenantDomain());
         String clientId = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_ID);
         String clientSecret = oidcConfig.get(OIDCAuthenticatorConstants.CLIENT_SECRET);
         String tokenEndpoint = oidcConfig.get(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL);
         if (StringUtils.isBlank(tokenEndpoint) || StringUtils.isBlank(clientId)) {
             throw new AuthenticationFailedException(
-                    "Could not resolve the referenced Daon IDP's OIDC configuration. Check the "
-                            + "Daon IDP ID configured on the Daon TrustX Authenticator connection.");
+                    "Could not resolve the Daon OIDC configuration. For a login connection, check the "
+                            + "Daon Verifier ID it references; for a Daon Identity Verifier "
+                            + "connection, check its own client id and endpoint configuration.");
         }
         String redirectUri = buildCallbackUrl(request);
 
@@ -199,16 +232,36 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     @Override
     public List<Property> getConfigurationProperties() {
 
+        // Both the self-contained (Identity Verifier) and the referencing (login) connection are
+        // this same authenticator type; advertise the union of keys used by either so the framework
+        // recognises them. Which subset is shown/used is driven by the connection template and by the
+        // presence of daon_idp_id at runtime. None are mandatory at the type level.
         List<Property> properties = new ArrayList<>();
 
-        properties.add(buildProperty(DAON_IDP_ID, "Daon IDP ID", false,
-                "Resource ID (UUID) of the Daon TrustX IDP connection whose OIDC client credentials and "
-                        + "endpoints this authenticator uses.", 0));
+        properties.add(buildProperty(OIDCAuthenticatorConstants.CLIENT_ID, "Client ID", false,
+                "Daon TrustX OIDC Client ID (self-contained Identity Verifier connection).", 0));
+        properties.add(buildProperty(OIDCAuthenticatorConstants.CLIENT_SECRET, "Client Secret", true,
+                "Daon TrustX OIDC Client Secret (self-contained Identity Verifier connection).", 1));
+        properties.add(buildProperty(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL, "Authorization Endpoint URL",
+                false, "Daon TrustX OIDC authorization endpoint URL "
+                        + "(self-contained Identity Verifier connection).", 2));
+        properties.add(buildProperty(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL, "Token Endpoint URL",
+                false, "Daon TrustX OIDC token endpoint URL "
+                        + "(self-contained Identity Verifier connection).", 3));
+        properties.add(buildProperty(IdentityApplicationConstants.Authenticator.OIDC.SCOPES, "Scopes", false,
+                "OIDC scopes to request from Daon, e.g. openid profile document "
+                        + "(self-contained Identity Verifier connection).", 4));
+        properties.add(buildProperty(DAON_IDP_ID, "Daon Verifier ID", false,
+                "Resource ID (UUID) of the Daon Identity Verifier connection whose OIDC client "
+                        + "credentials and endpoints a login connection uses. Leave blank for a "
+                        + "self-contained Identity Verifier connection.", 5));
+        properties.add(buildProperty(DAON_ENROL_PD, "Enrol Process Definition", false,
+                "Daon process definition for the enrolment flows (registration and invited-user), as "
+                        + "<ProcessDefinitionName:Version>, sent as acr_values "
+                        + "(self-contained Identity Verifier connection).", 6));
         properties.add(buildProperty(DAON_LOGIN_PD, "Login Process Definition", false,
-                "Daon process definition used for the login and password-recovery (re-verification) "
-                        + "flows, as <ProcessDefinitionName:Version>, sent as acr_values. Enrolment "
-                        + "flows use the enrol process definition configured on the referenced Daon "
-                        + "TrustX IDP.", 1));
+                "Daon process definition for the login and password-recovery (re-verification) flows, as "
+                        + "<ProcessDefinitionName:Version>, sent as acr_values (login connection).", 7));
         return properties;
     }
 
@@ -235,10 +288,10 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * domain-qualified {@code AuthenticatedUser} name fails to resolve and an enrolled user is wrongly
      * treated as not enrolled.</p>
      *
-     * <p>The association is keyed to the <b>referenced Daon IDP</b> (resolved from {@code daon_idp_id}),
-     * not this authenticator connection, so a user enrolled through one Daon TrustX Authenticator
-     * connection (e.g. the registration one) is recognised by any other connection pointing at the same
-     * Daon IDP (e.g. the login one).</p>
+     * <p>The association is keyed on the resolved Daon IDP name — for a login connection the
+     * <b>referenced</b> Identity Verifier connection (from {@code daon_idp_id}), for a self-contained
+     * connection its <b>own</b> name — so a user enrolled through the Identity Verifier connection is
+     * recognised by every login connection referencing it.</p>
      */
     private String resolveDaonSubject(AuthenticationContext context) {
 
@@ -246,8 +299,7 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         if (authenticatedUser == null) {
             return null;
         }
-        String daonIdpName = DaonReferencedIdpUtil.resolveIdpName(
-                context.getAuthenticatorProperties().get(DAON_IDP_ID), context.getTenantDomain());
+        String daonIdpName = resolveDaonIdpName(context);
         if (StringUtils.isBlank(daonIdpName)) {
             return null;
         }
@@ -259,6 +311,20 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         User associationUser =
                 DaonFederatedAssociationUtil.buildUser(username, authenticatedUser.getTenantDomain());
         return DaonFederatedAssociationUtil.getAssociatedDaonSubject(associationUser, daonIdpName);
+    }
+
+    /**
+     * Resolves the Daon IDP name the federated association is keyed on: the referenced Identity
+     * Verification connection's name when {@code daon_idp_id} is set (login connection), otherwise this
+     * connection's own name (self-contained connection).
+     */
+    private String resolveDaonIdpName(AuthenticationContext context) {
+
+        String idpResourceId = context.getAuthenticatorProperties().get(DAON_IDP_ID);
+        if (StringUtils.isNotBlank(idpResourceId)) {
+            return DaonReferencedIdpUtil.resolveIdpName(idpResourceId, context.getTenantDomain());
+        }
+        return context.getExternalIdP() != null ? context.getExternalIdP().getIdPName() : null;
     }
 
     private String buildCallbackUrl(HttpServletRequest request) {
