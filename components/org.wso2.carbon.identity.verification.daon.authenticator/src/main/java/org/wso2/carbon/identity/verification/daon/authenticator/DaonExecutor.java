@@ -106,7 +106,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             return errorResponse;
         }
 
-        flowExecutionContext.setPortalUrl(buildPortalUrl(flowExecutionContext.getTenantDomain()));
+        flowExecutionContext.setPortalUrl(
+                buildPortalUrl(flowExecutionContext.getTenantDomain(), flowExecutionContext.getFlowType()));
         prepareRequest(flowExecutionContext);
         // Password recovery re-verifies an already-Daon-enrolled user via login_hint. Without a Daon
         // association there is no login_hint to send, so fail cleanly instead of attempting enrolment.
@@ -585,23 +586,32 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 ? context.getExternalIdPConfig().getIdPName() : null;
     }
 
-    private String buildPortalUrl(String tenantDomain) {
+    /**
+     * Builds the dynamic flow-portal URL used as the OIDC {@code redirect_uri} the flow engine sends to
+     * Daon; the browser returns here with the {@code code}/{@code state} and the portal resumes the flow.
+     * The portal path is flow-specific: password recovery uses the recovery portal ({@code /accounts/recovery})
+     * while registration and invited-user registration use the self-registration portal
+     * ({@code /accounts/register}) — mirroring the IS authentication-portal dynamic portal routes.
+     */
+    private String buildPortalUrl(String tenantDomain, String flowType) {
 
+        String portalPath = "/accounts/"
+                + (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowType) ? "recovery" : "register");
         try {
             if (MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equals(tenantDomain)) {
-                return IdentityUtil.getServerURL("/accounts/register", true, true);
+                return IdentityUtil.getServerURL(portalPath, true, true);
             }
             if (OrganizationManagementUtil.isOrganization(tenantDomain)) {
                 OrganizationManager orgManager = DaonAuthenticatorDataHolder.getOrganizationManager();
                 if (orgManager != null) {
                     String orgId = orgManager.resolveOrganizationId(tenantDomain);
-                    return IdentityUtil.getServerURL("/o/" + orgId + "/accounts/register", true, true);
+                    return IdentityUtil.getServerURL("/o/" + orgId + portalPath, true, true);
                 }
             }
-            return IdentityUtil.getServerURL("/t/" + tenantDomain + "/accounts/register", true, true);
+            return IdentityUtil.getServerURL("/t/" + tenantDomain + portalPath, true, true);
         } catch (Exception e) {
             LOG.warn("Could not build portal URL for tenant: " + tenantDomain + "; falling back to default.", e);
-            return IdentityUtil.getServerURL("/accounts/register", true, true);
+            return IdentityUtil.getServerURL(portalPath, true, true);
         }
     }
 
