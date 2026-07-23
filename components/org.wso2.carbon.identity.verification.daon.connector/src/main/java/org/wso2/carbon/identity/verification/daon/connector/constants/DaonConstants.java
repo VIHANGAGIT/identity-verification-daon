@@ -56,12 +56,29 @@ public class DaonConstants {
      * OIDC claims request parameter and verified_claims response keys.
      */
     public static final String CLAIMS_PARAM = "claims";
+    /**
+     * OIDC individual-claim-request member used to request that a claim be returned with (verified
+     * against) a specific value, e.g. {@code "given_name": {"value": "JOHN"}}.
+     */
+    public static final String CLAIM_VALUE_MEMBER = "value";
     public static final String VERIFIED_CLAIMS = "verified_claims";
     public static final String VERIFIED_CLAIMS_ID_TOKEN = "verifiedClaims";
     public static final String VERIFICATION = "verification";
     public static final String TRUST_FRAMEWORK = "trust_framework";
     public static final String TRUST_FRAMEWORK_VALUE = "daon-identify-1";
     public static final String ID_TOKEN_CONTAINER = "id_token";
+
+    /**
+     * Daon verified claim names requested in the OIDC {@code claims} parameter.
+     */
+    public static final String CLAIM_GIVEN_NAME = "given_name";
+    public static final String CLAIM_FAMILY_NAME = "family_name";
+    public static final String CLAIM_FAMILY_NAME_AND_GIVEN_NAME = "family_name_and_given_name";
+    public static final String CLAIM_DOCUMENT_TYPE = "document_type";
+    public static final String CLAIM_DOCUMENT_CLASSIFICATION = "document_classification";
+    public static final String CLAIM_DOCUMENT_DATE_OF_EXPIRY = "document_date_of_expiry";
+    public static final String CLAIM_DOCUMENT_NUMBER = "document_number";
+    public static final String CLAIM_DOCUMENT_PERSONAL_NUMBER = "document_personal_number";
 
     /**
      * HTTP constants.

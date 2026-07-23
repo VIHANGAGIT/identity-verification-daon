@@ -89,6 +89,14 @@ public class DaonAuthenticatorConstants {
     public static final String DAON_CLAIM_NAMES = "daon_claim_names";
 
     /**
+     * Property key used to carry the pre-known values of the mapped claims (as a JSON object keyed by
+     * Daon claim name) through the authenticator properties, so {@code getAdditionalQueryParams()} can
+     * send them as OIDC value-requests in the {@code claims} parameter. Populated for the enrolment
+     * flows from attributes the user already has before Daon is triggered.
+     */
+    public static final String DAON_CLAIM_VALUES = "daon_claim_values";
+
+    /**
      * Property key used to carry the resolved {@code login_hint} (Daon {@code preferred_username})
      * into {@code getAdditionalQueryParams()} for the password recovery face-auth flow.
      */

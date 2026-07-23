@@ -169,6 +169,16 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         Map<String, String> claimMappings = getIdpClaimMappings(flowExecutionContext);
         if (!claimMappings.isEmpty()) {
             enriched.put(DAON_CLAIM_NAMES, String.join(",", claimMappings.values()));
+            // Any mapped attribute the user already has (registration form input, invited user's
+            // existing profile) is sent to Daon as a value-request so it verifies against that value
+            // instead of returning it unverified. Recovery does not request claims, so skip it there.
+            if (!FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType())) {
+                Map<String, String> prefilledValues =
+                        resolvePrefilledClaimValues(flowExecutionContext, claimMappings);
+                if (!prefilledValues.isEmpty()) {
+                    enriched.put(DAON_CLAIM_VALUES, new JSONObject(prefilledValues).toString());
+                }
+            }
         }
 
         boolean recovery = FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType());
@@ -219,8 +229,31 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             return params;
         }
         List<String> claimNames = Arrays.asList(claimNamesStr.split(","));
-        params.put("claims", DaonAPIClient.buildClaimsParam(claimNames));
+        Map<String, String> claimValues = parseClaimValues(authenticatorProperties.get(DAON_CLAIM_VALUES));
+        params.put("claims", DaonAPIClient.buildClaimsParam(claimNames, claimValues));
         return params;
+    }
+
+    /**
+     * Parses the {@code daon_claim_values} property (a JSON object keyed by Daon claim name) back into a
+     * map for {@link DaonAPIClient#buildClaimsParam(List, Map)}. Returns an empty map when the property
+     * is absent or unparseable.
+     */
+    private Map<String, String> parseClaimValues(String serialized) {
+
+        Map<String, String> values = new HashMap<>();
+        if (StringUtils.isBlank(serialized)) {
+            return values;
+        }
+        try {
+            JSONObject json = new JSONObject(serialized);
+            for (String key : json.keySet()) {
+                values.put(key, json.getString(key));
+            }
+        } catch (org.json.JSONException e) {
+            LOG.warn("Could not parse pre-known Daon claim values; sending claim requests without values.", e);
+        }
+        return values;
     }
 
     @Override
@@ -615,6 +648,45 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             LOG.warn("Could not build portal URL for tenant: " + tenantDomain + "; falling back to default.", e);
             return IdentityUtil.getServerURL(portalPath, true, true);
         }
+    }
+
+    /**
+     * Resolves the pre-known values of the mapped claims, keyed by Daon claim name, so they can be sent
+     * to Daon as OIDC value-requests. For self-registration these come from what the user has entered so
+     * far (the flow user's collected claims); for invited users they come from the existing profile
+     * (flow user, falling back to the user store). Only mapped claims with a non-blank value are included.
+     *
+     * @param claimMappings WSO2 local claim URI -> Daon claim name.
+     * @return Daon claim name -> value; empty when nothing is populated yet.
+     */
+    private Map<String, String> resolvePrefilledClaimValues(FlowExecutionContext context,
+                                                             Map<String, String> claimMappings) {
+
+        Map<String, String> localValues;
+        if (FLOW_TYPE_INVITED_USER_REGISTRATION.equals(context.getFlowType())) {
+            localValues = resolveInvitedUserClaims(context, claimMappings.keySet());
+        } else {
+            localValues = new HashMap<>();
+            FlowUser flowUser = context.getFlowUser();
+            Map<String, String> collectedClaims = flowUser != null ? flowUser.getClaims() : null;
+            if (collectedClaims != null) {
+                for (String localUri : claimMappings.keySet()) {
+                    String value = collectedClaims.get(localUri);
+                    if (StringUtils.isNotBlank(value)) {
+                        localValues.put(localUri, value);
+                    }
+                }
+            }
+        }
+
+        Map<String, String> valuesByDaonName = new HashMap<>();
+        for (Map.Entry<String, String> mapping : claimMappings.entrySet()) {
+            String value = localValues.get(mapping.getKey());
+            if (StringUtils.isNotBlank(value)) {
+                valuesByDaonName.put(mapping.getValue(), value.trim());
+            }
+        }
+        return valuesByDaonName;
     }
 
     /**

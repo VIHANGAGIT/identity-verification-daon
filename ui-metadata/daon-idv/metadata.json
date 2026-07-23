@@ -83,6 +83,7 @@
                         "name": "scopes",
                         "label": "Scopes",
                         "placeholder": "openid profile document",
+                        "initialValue": "openid profile document",
                         "required": false,
                         "data-testid": "daon-idv-create-wizard-page-scopes",
                         "maxLength": "200",
