@@ -109,13 +109,21 @@
                 "message": {
                     "copyInputFields": [
                         {
-                            "description": "Use the following URL as the <strong>Authorized Redirect URI</strong>.",
+                            "description": "Login callback:",
                             "value": "redirect_uri"
+                        },
+                        {
+                            "description": "Registration & invited-user callback:",
+                            "value": "registration_redirect_uri"
+                        },
+                        {
+                            "description": "Password-recovery callback:",
+                            "value": "recovery_redirect_uri"
                         }
                     ],
                     "header": "Prerequisites",
                     "paragraphs": [
-                        "Before you begin, register an <strong>OIDC client</strong> in your Daon TrustX tenant and obtain a <strong>Client ID & secret</strong>. Note the Daon <strong>authorization</strong> and <strong>token</strong> endpoint URLs, and the <strong>enrol process definition</strong> used for registration and invited-user enrolment. Add this connection to your registration/invited-user flows to enrol and verify users. For login, reference this connection from a <strong>Daon TrustX Authenticator</strong> connection using its resource ID."
+                        "Register an <strong>OIDC client</strong> in your Daon TrustX tenant, obtain its <strong>Client ID & secret</strong>, and add all three <strong>Authorized Redirect URIs</strong> below to it."
                     ]
                 },
                 "fields": [
@@ -185,7 +193,7 @@
                 "steps": [
                     {
                         "title": "Configure the connection",
-                        "content": "<p>Provide the <strong>Client ID</strong>, <strong>Client Secret</strong>, <strong>endpoint URLs</strong>, <strong>Scopes</strong> and the <strong>Enrol Process Definition</strong> on the <strong>Settings</strong> tab, and register the authorized redirect URI shown there as an allowed redirect URI of the OIDC client in your Daon TrustX tenant.</p>"
+                        "content": "<p>Provide the <strong>Client ID</strong>, <strong>Client Secret</strong>, <strong>endpoint URLs</strong>, <strong>Scopes</strong> and the <strong>Enrol Process Definition</strong> on the <strong>Settings</strong> tab, and register the authorized redirect URIs on the OIDC client in your Daon TrustX tenant.</p>"
                     },
                     {
                         "title": "Map attributes",
