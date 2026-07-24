@@ -137,17 +137,4 @@ public class DaonAuthenticatorConstants {
      */
     public static final String DAON_FED_IDP_NAME = "daon_fed_idp_name";
     public static final String DAON_FED_SUBJECT = "daon_fed_subject";
-
-    // IS identity claim used to lock a user account.
-    public static final String ACCOUNT_LOCKED_CLAIM = "http://wso2.org/claims/identity/accountLocked";
-
-    // Invited-user verification outcome + retry counting (flow-context property keys).
-    public static final String DAON_VERIFICATION_OUTCOME = "daon_verification_outcome";
-    public static final String DAON_VERIFICATION_ATTEMPTS = "daon_verification_attempts";
-    public static final String OUTCOME_RETRY = "RETRY";
-    public static final String OUTCOME_LOCKED = "LOCKED";
-
-    // Number of failed Daon verification attempts (within an invited-user session) before the account
-    // is locked. Failures below this threshold re-prompt the Daon step; at/above it the account is locked.
-    public static final int MAX_VERIFICATION_ATTEMPTS = 3;
 }

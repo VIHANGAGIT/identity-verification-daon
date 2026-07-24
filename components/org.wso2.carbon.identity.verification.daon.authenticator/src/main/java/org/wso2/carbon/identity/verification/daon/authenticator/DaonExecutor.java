@@ -122,25 +122,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                     "password recovery.");
             return notEnrolled;
         }
-        ExecutorResponse response = super.execute(flowExecutionContext);
-        String outcome = (String) flowExecutionContext.getProperty(DAON_VERIFICATION_OUTCOME);
-        if (OUTCOME_LOCKED.equals(outcome)) {
-            ExecutorResponse errorResponse = new ExecutorResponse();
-            errorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
-            errorResponse.setErrorMessage(
-                    "The details in your profile could not be verified by Daon after repeated attempts. " +
-                    "Your account has been locked. Please contact support.");
-            return errorResponse;
-        }
-        if (OUTCOME_RETRY.equals(outcome)) {
-            // Re-prompt the Daon step (the code/state were cleared so it re-redirects).
-            ExecutorResponse retryResponse = new ExecutorResponse();
-            retryResponse.setResult(Constants.ExecutorStatus.STATUS_RETRY);
-            retryResponse.setErrorMessage(
-                    "Identity verification with Daon did not match your details. Please try again.");
-            return retryResponse;
-        }
-        return response;
+        return super.execute(flowExecutionContext);
     }
 
     /**
@@ -317,16 +299,11 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
         String preferredUsername = idTokenPayload.optString(DaonConstants.JWT_PREFERRED_USERNAME_CLAIM, null);
 
-        // Invited user flow: verify the admin-defined claims against the Daon-verified values. The
-        // invited user already exists, so their claims are read from the flow user / user store.
-        if (FLOW_TYPE_INVITED_USER_REGISTRATION.equals(flowExecutionContext.getFlowType())) {
-            Map<String, String> userProfileClaims =
-                    resolveInvitedUserClaims(flowExecutionContext, claimMappings.keySet());
-            if (!validateProfileClaimsAgainstVerified(userProfileClaims, extractedClaims, claimMappings)) {
-                handleVerificationFailure(flowExecutionContext);
-                return userAttributes;
-            }
-        }
+        // Verification of the user's details against the identity document is performed by Daon itself: the
+        // invited user's (and self-registrant's) already-known claims are sent to Daon as OIDC claim
+        // value-requests, and Daon returns a CLAIMS_VERIFICATION_MISMATCH error on the callback if they do
+        // not match (surfaced as a user-facing error in execute()). A successful callback (a code) means
+        // Daon accepted the details, so no client-side re-validation is done here.
 
         // Self-registration: Daon is the source of truth, so provision the new user's profile.
         if (FLOW_TYPE_REGISTRATION.equals(flowExecutionContext.getFlowType())) {
@@ -471,115 +448,6 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             LOG.warn("Could not read the invited user's stored claims for Daon verification.", e);
         }
         return resolved;
-    }
-
-    /**
-     * Records a failed invited-user verification: increments the session attempt counter and either
-     * re-prompts the Daon step (clearing the code/state so it re-redirects) or, once the attempts reach
-     * {@link DaonAuthenticatorConstants#MAX_VERIFICATION_ATTEMPTS}, locks the account.
-     */
-    private void handleVerificationFailure(FlowExecutionContext context) {
-
-        int attempts = parseAttempts(context.getProperty(DAON_VERIFICATION_ATTEMPTS)) + 1;
-        context.setProperty(DAON_VERIFICATION_ATTEMPTS, String.valueOf(attempts));
-        if (attempts >= MAX_VERIFICATION_ATTEMPTS) {
-            lockUserAccount(context);
-            context.setProperty(DAON_VERIFICATION_OUTCOME, OUTCOME_LOCKED);
-        } else {
-            if (context.getUserInputData() != null) {
-                context.getUserInputData().remove("code");
-                context.getUserInputData().remove("state");
-            }
-            context.setProperty(DAON_VERIFICATION_OUTCOME, OUTCOME_RETRY);
-        }
-    }
-
-    private int parseAttempts(Object value) {
-
-        if (value == null) {
-            return 0;
-        }
-        try {
-            return Integer.parseInt(value.toString());
-        } catch (NumberFormatException e) {
-            return 0;
-        }
-    }
-
-    /**
-     * Validates each configured IDP claim URI that the invited user has a value for against the
-     * corresponding Daon-verified value. For name claims where Daon returns a combined
-     * {@code family_name_and_given_name} instead of separate {@code given_name}/{@code family_name},
-     * the combined field is used as a fallback (contains check). Claims the user has no value for are
-     * skipped (nothing to verify).
-     *
-     * @return {@code true} if all present claims match; {@code false} on any mismatch.
-     */
-    private boolean validateProfileClaimsAgainstVerified(
-            Map<String, String> userProfileClaims,
-            Map<String, String> extractedClaims,
-            Map<String, String> claimMappings) {
-
-        String combinedName = extractedClaims.get(
-                DaonAuthenticatorConstants.CLAIM_DIALECT_URI + "/family_name_and_given_name");
-
-        for (String wso2Uri : claimMappings.keySet()) {
-            String profileValue = userProfileClaims.get(wso2Uri);
-            if (StringUtils.isBlank(profileValue)) {
-                continue;
-            }
-            profileValue = profileValue.trim();
-            String verifiedValue = extractedClaims.get(wso2Uri);
-            if (verifiedValue != null) {
-                if (!verifiedValue.toLowerCase().contains(profileValue.toLowerCase())) {
-                    LOG.warn("Claim mismatch for URI: " + wso2Uri);
-                    return false;
-                }
-                continue;
-            }
-            boolean isNameClaim = WSO2_LASTNAME_CLAIM_URI.equals(wso2Uri)
-                    || WSO2_GIVENNAME_CLAIM_URI.equals(wso2Uri);
-            if (isNameClaim) {
-                if (combinedName == null || !combinedName.toLowerCase().contains(profileValue.toLowerCase())) {
-                    LOG.warn("Claim mismatch for URI: " + wso2Uri
-                            + " (no direct Daon value; combined name check failed)");
-                    return false;
-                }
-            } else {
-                LOG.warn("No verified value available for claim URI: " + wso2Uri + "; skipping validation.");
-            }
-        }
-        return true;
-    }
-
-    private void lockUserAccount(FlowExecutionContext context) {
-
-        if (context.getFlowUser() == null) {
-            LOG.warn("Cannot lock account: flow user is not available in context.");
-            return;
-        }
-        String userId = context.getFlowUser().getUserId();
-        if (StringUtils.isBlank(userId)) {
-            LOG.warn("Cannot lock account: user ID is blank in flow context.");
-            return;
-        }
-        try {
-            int tenantId = IdentityTenantUtil.getTenantId(context.getTenantDomain());
-            org.wso2.carbon.user.api.UserStoreManager usm =
-                    DaonAuthenticatorDataHolder.getRealmService()
-                            .getTenantUserRealm(tenantId)
-                            .getUserStoreManager();
-            if (usm instanceof UniqueIDUserStoreManager) {
-                Map<String, String> claimsToLock = new HashMap<>();
-                claimsToLock.put(ACCOUNT_LOCKED_CLAIM, "true");
-                ((UniqueIDUserStoreManager) usm).setUserClaimValuesWithID(userId, claimsToLock, null);
-                LOG.warn("User account locked due to Daon verified-claim mismatch. User ID: " + userId);
-            } else {
-                LOG.warn("UniqueIDUserStoreManager not available; account not locked for user: " + userId);
-            }
-        } catch (UserStoreException e) {
-            LOG.error("Failed to lock account for user: " + userId, e);
-        }
     }
 
     /**
