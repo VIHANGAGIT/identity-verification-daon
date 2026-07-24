@@ -115,11 +115,16 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         // association there is no login_hint to send, so fail cleanly instead of attempting enrolment.
         if (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType())
                 && StringUtils.isBlank(flowExecutionContext.getAuthenticatorProperties().get(DAON_LOGIN_HINT))) {
+            String notEnrolledMessage = "Your account is not enrolled with Daon TrustX for identity verification. "
+                    + "Please contact your administrator.";
             ExecutorResponse notEnrolled = new ExecutorResponse();
             notEnrolled.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
-            notEnrolled.setErrorMessage(
-                    "The user is not enrolled with Daon TrustX, so identity cannot be verified for " +
-                    "password recovery.");
+            // Set a stable, machine-readable error code so the recovery portal can switch on it (via the
+            // flow API's error.code) instead of parsing the message. The flow engine propagates the
+            // executor's error code/description straight through to the client error response.
+            notEnrolled.setErrorCode(USER_NOT_ENROLLED_ERROR_CODE);
+            notEnrolled.setErrorMessage(notEnrolledMessage);
+            notEnrolled.setErrorDescription(notEnrolledMessage);
             return notEnrolled;
         }
         return super.execute(flowExecutionContext);

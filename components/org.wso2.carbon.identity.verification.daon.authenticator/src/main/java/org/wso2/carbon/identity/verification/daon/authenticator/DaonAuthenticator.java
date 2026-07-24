@@ -26,6 +26,7 @@ import org.wso2.carbon.identity.application.authentication.framework.FederatedAp
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
+import org.wso2.carbon.identity.application.authentication.framework.util.FrameworkUtils;
 import org.wso2.carbon.identity.application.authenticator.oidc.OIDCAuthenticatorConstants;
 import org.wso2.carbon.identity.application.authenticator.oidc.OpenIDConnectAuthenticator;
 import org.wso2.carbon.identity.application.common.model.Property;
@@ -140,9 +141,11 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         // Daon association is not enrolled, so the login flow cannot verify them.
         String daonSubject = resolveDaonSubject(context);
         if (StringUtils.isBlank(daonSubject)) {
-            throw new AuthenticationFailedException(
-                    "The user is not enrolled with Daon TrustX. Complete Daon identity verification "
-                            + "before using Daon TrustX as a login step.");
+            // A user with no Daon enrolment cannot be verified at login. The framework drops an
+            // AuthenticationFailedException's error code before it reaches the portal, so redirect to the
+            // retry page with a stable errorCode the portal switches on, instead of a generic failure.
+            redirectToNotEnrolledRetryPage(request, response, context);
+            return;
         }
         String processDefinition = props.get(DAON_LOGIN_PD);
 
@@ -332,5 +335,33 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     private String buildCallbackUrl(HttpServletRequest request) {
         return request.getScheme() + "://" + request.getServerName() + ":"
                 + request.getServerPort() + COMMON_AUTH_ENDPOINT;
+    }
+
+    /**
+     * Sends a user who is not enrolled with Daon to the authentication retry page with a dedicated
+     * "not enrolled" message, via {@link FrameworkUtils#sendToRetryPage}. That framework helper sets up
+     * the error cache / branding / layout context the retry page needs (a hand-built redirect renders a
+     * blank page). The status/message are passed as i18n keys the retry page resolves, so no raw text is
+     * hard-coded in the flow and the message stays localizable.
+     */
+    private void redirectToNotEnrolledRetryPage(HttpServletRequest request, HttpServletResponse response,
+                                                AuthenticationContext context)
+            throws AuthenticationFailedException {
+
+        if (LOG.isDebugEnabled()) {
+            LOG.debug("User not enrolled with Daon TrustX at the login step; sending to the retry page "
+                    + "with status message key: " + DaonAuthenticatorConstants.NOT_ENROLLED_RETRY_STATUS_MSG);
+        }
+        try {
+            FrameworkUtils.sendToRetryPage(request, response, context,
+                    DaonAuthenticatorConstants.NOT_ENROLLED_RETRY_STATUS,
+                    DaonAuthenticatorConstants.NOT_ENROLLED_RETRY_STATUS_MSG);
+            context.setCurrentAuthenticator(getName());
+        } catch (IOException e) {
+            LOG.error("Failed to redirect the not-enrolled user to the Daon login retry page.", e);
+            throw new AuthenticationFailedException(
+                    DaonAuthenticatorConstants.USER_NOT_ENROLLED_ERROR_CODE,
+                    "The user is not enrolled with Daon TrustX.");
+        }
     }
 }
