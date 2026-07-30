@@ -23,6 +23,7 @@ import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
+import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerClientException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.model.FederatedAssociation;
 import org.wso2.carbon.identity.verification.daon.authenticator.internal.DaonAuthenticatorDataHolder;
@@ -79,6 +80,13 @@ final class DaonFederatedAssociationUtil {
                     String subject = association.getFederatedUserId();
                     return subject != null ? subject : StringUtils.EMPTY;
                 }
+            }
+        } catch (FederatedAssociationManagerClientException e) {
+            // Expected, the user identifier does not resolve to an existing user. Password recovery routes even a
+            // non-existent user through the first step (to avoid user enumeration).
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Could not resolve Daon federated associations for the user (the user likely does "
+                        + "not exist); treating as not verified. IDP: " + idpName, e);
             }
         } catch (FederatedAssociationManagerException e) {
             LOG.warn("Error resolving Daon federated association for the user; treating as not verified.", e);
