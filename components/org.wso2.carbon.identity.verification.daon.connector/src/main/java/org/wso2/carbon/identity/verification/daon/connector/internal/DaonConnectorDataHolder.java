@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator.internal;
+package org.wso2.carbon.identity.verification.daon.connector.internal;
 
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
@@ -24,16 +24,16 @@ import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * Service holder for the Daon TrustX authenticator OSGi bundle.
+ * Service holder for the Daon TrustX connector OSGi bundle.
  */
-public class DaonAuthenticatorDataHolder {
+public class DaonConnectorDataHolder {
 
     private static RealmService realmService;
     private static OrganizationManager organizationManager;
     private static FederatedAssociationManager federatedAssociationManager;
     private static IdpManager idpManager;
 
-    private DaonAuthenticatorDataHolder() {
+    private DaonConnectorDataHolder() {
     }
 
     public static RealmService getRealmService() {
@@ -43,7 +43,7 @@ public class DaonAuthenticatorDataHolder {
 
     public static void setRealmService(RealmService realmService) {
 
-        DaonAuthenticatorDataHolder.realmService = realmService;
+        DaonConnectorDataHolder.realmService = realmService;
     }
 
     public static OrganizationManager getOrganizationManager() {
@@ -53,7 +53,7 @@ public class DaonAuthenticatorDataHolder {
 
     public static void setOrganizationManager(OrganizationManager organizationManager) {
 
-        DaonAuthenticatorDataHolder.organizationManager = organizationManager;
+        DaonConnectorDataHolder.organizationManager = organizationManager;
     }
 
     public static FederatedAssociationManager getFederatedAssociationManager() {
@@ -63,7 +63,7 @@ public class DaonAuthenticatorDataHolder {
 
     public static void setFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
 
-        DaonAuthenticatorDataHolder.federatedAssociationManager = federatedAssociationManager;
+        DaonConnectorDataHolder.federatedAssociationManager = federatedAssociationManager;
     }
 
     public static IdpManager getIdpManager() {
@@ -73,6 +73,6 @@ public class DaonAuthenticatorDataHolder {
 
     public static void setIdpManager(IdpManager idpManager) {
 
-        DaonAuthenticatorDataHolder.idpManager = idpManager;
+        DaonConnectorDataHolder.idpManager = idpManager;
     }
 }

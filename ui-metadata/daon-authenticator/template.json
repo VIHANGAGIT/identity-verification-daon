@@ -28,8 +28,8 @@
                     "properties": [
                         {
                             "key": "daon_idp_id",
-                            "displayName": "Daon Verifier ID",
-                            "description": "Resource ID (UUID) of the Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses.",
+                            "displayName": "Daon Identity Verifier",
+                            "description": "The Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses. Stored as the resource ID (UUID) of that connection.",
                             "type": "STRING",
                             "displayOrder": 1,
                             "regex": ".*",

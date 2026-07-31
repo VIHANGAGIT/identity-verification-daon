@@ -23,15 +23,21 @@
                     },
                     {
                         "index": 1,
-                        "ariaLabel": "Daon Verifier ID",
-                        "type": "text",
+                        "ariaLabel": "Daon Identity Verifier",
+                        "type": "select",
                         "name": "daon_idp_id",
-                        "label": "Daon Verifier ID",
-                        "placeholder": "Resource ID (UUID) of the Daon Identity Verifier connection.",
+                        "label": "Daon Identity Verifier",
+                        "placeholder": "Select a Daon Identity Verifier connection.",
                         "required": true,
+                        "optionsSource": {
+                            "type": "connections",
+                            "authenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
+                            "templateId": "daon-idv",
+                            "excludeCurrent": true,
+                            "valueField": "id",
+                            "labelField": "name"
+                        },
                         "data-testid": "daon-authenticator-create-wizard-page-idp-id",
-                        "maxLength": "100",
-                        "minLength": "3",
                         "width": "13"
                     },
                     {
@@ -53,7 +59,7 @@
                 "message": {
                     "header": "Prerequisites",
                     "paragraphs": [
-                        "First create a <strong>Daon Identity Verifier</strong> connection (holding the OIDC client credentials, endpoints and the <strong>enrol process definition</strong>). Then copy its <strong>resource ID</strong> (the id shown in the connection details / console URL) and provide it here as the <strong>Daon Verifier ID</strong>, along with the <strong>login process definition</strong> to send as acr_values during login and password recovery."
+                        "First create a <strong>Daon Identity Verifier</strong> connection (holding the OIDC client credentials, endpoints and the <strong>enrol process definition</strong>). Then select it here as the <strong>Daon Identity Verifier</strong>, along with the <strong>login process definition</strong> to send as acr_values during login and password recovery."
                     ]
                 },
                 "fields": [
@@ -62,8 +68,8 @@
                         "hint": "Provide a unique name for the connection."
                     },
                     {
-                        "fieldName": "Daon Verifier ID",
-                        "hint": "Resource ID (UUID) of the <Code class=\"inline-code\">Daon Identity Verifier</Code> connection whose OIDC client credentials and endpoints this authenticator uses."
+                        "fieldName": "Daon Identity Verifier",
+                        "hint": "The <Code class=\"inline-code\">Daon Identity Verifier</Code> connection whose OIDC client credentials and endpoints this authenticator uses. Only Daon Identity Verifier connections of this organization are listed."
                     },
                     {
                         "fieldName": "Login Process Definition",
@@ -91,7 +97,7 @@
                 "steps": [
                     {
                         "title": "Configure the connection",
-                        "content": "<p>Provide the <strong>Daon Verifier ID</strong> (resource ID of the Daon Identity Verifier connection) and the <strong>Login Process Definition</strong> on the <strong>Settings</strong> tab. The OIDC client credentials, endpoints and scopes are resolved from the referenced Daon Identity Verifier connection.</p>"
+                        "content": "<p>Select the <strong>Daon Identity Verifier</strong> connection and provide the <strong>Login Process Definition</strong> on the <strong>Settings</strong> tab. The OIDC client credentials, endpoints and scopes are resolved from the referenced Daon Identity Verifier connection.</p>"
                     },
                     {
                         "title": "Map attributes",
@@ -144,17 +150,23 @@
                 {
                     "index": 0,
                     "displayOrder": 1,
-                    "ariaLabel": "Daon Verifier ID",
-                    "inputType": "default",
+                    "ariaLabel": "Daon Identity Verifier",
+                    "type": "select",
                     "name": "daon_idp_id",
-                    "label": "Daon Verifier ID",
-                    "placeholder": "Resource ID (UUID) of the Daon Identity Verifier connection.",
-                    "hint": "Resource ID (UUID) of the Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses.",
+                    "label": "Daon Identity Verifier",
+                    "placeholder": "Select a Daon Identity Verifier connection.",
+                    "hint": "The Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses. Only Daon Identity Verifier connections of this organization are listed.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
-                    "maxLength": "100",
-                    "minLength": "3",
+                    "optionsSource": {
+                        "type": "connections",
+                        "authenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
+                        "templateId": "daon-idv",
+                        "excludeCurrent": true,
+                        "valueField": "id",
+                        "labelField": "name"
+                    },
                     "width": "16",
                     "data-testid": "idp-edit-page-authenticator-settings-DaonAuthenticator-content-idp-id"
                 },

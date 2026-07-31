@@ -16,20 +16,24 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator;
+package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
+import org.wso2.carbon.identity.application.authenticator.oidc.OIDCAuthenticatorConstants;
 import org.wso2.carbon.identity.application.common.model.FederatedAuthenticatorConfig;
 import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.Property;
-import org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants;
-import org.wso2.carbon.identity.verification.daon.authenticator.internal.DaonAuthenticatorDataHolder;
+import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdpManager;
 
+import java.util.Arrays;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -47,7 +51,46 @@ final class DaonReferencedIdpUtil {
 
     private static final Log LOG = LogFactory.getLog(DaonReferencedIdpUtil.class);
 
+    /**
+     * The standard OIDC authenticator property keys resolved from the referenced connection. These are the
+     * keys {@code OpenIDConnectAuthenticator} / {@code OpenIDConnectExecutor} read to build the authorize
+     * and token requests, so injecting them makes a referencing connection look self-contained to them.
+     */
+    private static final List<String> OIDC_CONFIG_KEYS = Arrays.asList(
+            OIDCAuthenticatorConstants.CLIENT_ID,
+            OIDCAuthenticatorConstants.CLIENT_SECRET,
+            OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL,
+            OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL,
+            IdentityApplicationConstants.Authenticator.OIDC.SCOPES);
+
     private DaonReferencedIdpUtil() {
+    }
+
+    /**
+     * Builds the authenticator properties the OIDC parent classes should act on: the connection's own
+     * properties with the OIDC client credentials, endpoints and scopes of the <b>referenced</b> Daon
+     * Identity Verifier connection layered on top when {@code daon_idp_id} is set.
+     *
+     * <p>Both the login authenticator and the flow executor set the result back on their context before
+     * delegating, so all authorize/token request construction stays in {@code OpenIDConnectAuthenticator}
+     * / {@code OpenIDConnectExecutor} — a referencing connection is simply presented to them as a fully
+     * configured OIDC connection. For a self-contained connection this is a copy of its own properties.</p>
+     *
+     * @param props        the connection's own authenticator properties.
+     * @param tenantDomain tenant the connection belongs to.
+     * @return the effective authenticator properties (never the passed-in map).
+     */
+    static Map<String, String> buildEffectiveProperties(Map<String, String> props, String tenantDomain) {
+
+        Map<String, String> effectiveProperties = new HashMap<>(props);
+        Map<String, String> oidcConfig = resolveEffectiveOidcConfig(props, tenantDomain);
+        for (String key : OIDC_CONFIG_KEYS) {
+            String value = oidcConfig.get(key);
+            if (StringUtils.isNotBlank(value)) {
+                effectiveProperties.put(key, value);
+            }
+        }
+        return effectiveProperties;
     }
 
     /**
@@ -59,9 +102,9 @@ final class DaonReferencedIdpUtil {
      * @param tenantDomain tenant the connection belongs to.
      * @return the effective OIDC configuration (own or referenced).
      */
-    static Map<String, String> resolveEffectiveOidcConfig(Map<String, String> props, String tenantDomain) {
+    private static Map<String, String> resolveEffectiveOidcConfig(Map<String, String> props, String tenantDomain) {
 
-        String idpResourceId = props.get(DaonAuthenticatorConstants.DAON_IDP_ID);
+        String idpResourceId = props.get(DaonConstants.DAON_IDP_ID);
         if (StringUtils.isNotBlank(idpResourceId)) {
             return resolveOidcConfig(idpResourceId, tenantDomain);
         }
@@ -77,13 +120,13 @@ final class DaonReferencedIdpUtil {
      * @param tenantDomain  tenant the connection belongs to.
      * @return the referenced IDP's authenticator properties; empty if it cannot be resolved.
      */
-    static Map<String, String> resolveOidcConfig(String idpResourceId, String tenantDomain) {
+    private static Map<String, String> resolveOidcConfig(String idpResourceId, String tenantDomain) {
 
         Map<String, String> config = new HashMap<>();
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
             return config;
         }
-        IdpManager idpManager = DaonAuthenticatorDataHolder.getIdpManager();
+        IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
         if (idpManager == null) {
             LOG.warn("IdpManager unavailable; cannot resolve the referenced Daon IDP: " + idpResourceId);
             return config;
@@ -133,7 +176,7 @@ final class DaonReferencedIdpUtil {
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
             return null;
         }
-        IdpManager idpManager = DaonAuthenticatorDataHolder.getIdpManager();
+        IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
         if (idpManager == null) {
             LOG.warn("IdpManager unavailable; cannot resolve the referenced Daon IDP: " + idpResourceId);
             return null;

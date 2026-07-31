@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator;
+package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
 

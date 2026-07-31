@@ -20,7 +20,7 @@ The flows:
 - **Invited-user registration** — validate a pre-populated profile against Daon-verified values (lock on mismatch).
 - **Login verification** — as a login step, re-verify an already-enrolled user. A user not yet enrolled
   with Daon fails with an error (enrolment happens via a registration flow, not at login).
-- **Password-recovery verification** — face re-verification of an already-enrolled user.
+- **Password-recovery verification** — face / push notification based re-verification of an already-enrolled user.
 
 A connection is *self-contained* (no `daon_idp_id`) or *referencing* (`daon_idp_id` set) — the runtime
 branches on that to read OIDC config and the association key either from the connection's own props or
@@ -48,14 +48,11 @@ association store — no custom user claims and no separate Identity Verificatio
 mvn clean install
 ```
 
-Artifacts produced (two OSGi bundles — **no WAR**):
+Artifacts produced (a single OSGi bundle — **no WAR**):
 
 | Artifact | Location |
 |---|---|
-| Connector bundle | `components/org.wso2.carbon.identity.verification.daon.connector/target/org.wso2.carbon.identity.verification.daon.connector-*.jar` |
-| Authenticator + executor bundle | `components/org.wso2.carbon.identity.verification.daon.authenticator/target/org.wso2.carbon.identity.verification.daon.authenticator-*.jar` |
-
-The authenticator bundle depends on the connector bundle at runtime — deploy both.
+| Connector bundle (authenticator + executor + Daon API client) | `components/org.wso2.carbon.identity.verification.daon.connector/target/org.wso2.carbon.identity.verification.daon.connector-*.jar` |
 
 ---
 
@@ -66,13 +63,9 @@ The authenticator bundle depends on the connector bundle at runtime — deploy b
 ```bash
 IS_HOME=/path/to/wso2is
 
-# OSGi bundles
+# OSGi bundle
 cp components/org.wso2.carbon.identity.verification.daon.connector/target/\
 org.wso2.carbon.identity.verification.daon.connector-*.jar \
-$IS_HOME/repository/components/dropins/
-
-cp components/org.wso2.carbon.identity.verification.daon.authenticator/target/\
-org.wso2.carbon.identity.verification.daon.authenticator-*.jar \
 $IS_HOME/repository/components/dropins/
 
 # UI metadata — both Daon TrustX connection templates
@@ -86,6 +79,13 @@ $IS_HOME/repository/deployment/server/webapps/console/resources/connections/asse
 
 > The exact `connections` metadata path can vary by IS version — place `daon-idv` (Identity
 > Verification / enrol) and `daon-authenticator` (login) where your IS build reads connection templates.
+
+> **Upgrading from an earlier build?** The authenticator and connector bundles have been consolidated
+> into the single `org.wso2.carbon.identity.verification.daon.connector` bundle. Delete any previously
+> deployed `org.wso2.carbon.identity.verification.daon.authenticator-*.jar` from `dropins` before
+> restarting — leaving it there registers a second authenticator/executor/listener and exports the
+> packages that have since moved. No connection reconfiguration is needed: the authenticator name
+> (`DaonAuthenticator`), the executor name (`DaonExecutor`) and both connection templates are unchanged.
 
 ### 2. No custom claims to register
 
@@ -131,8 +131,7 @@ $IS_HOME/bin/wso2server.sh restart
 | **Enrol Process Definition** | PD for registration/invited-user enrolment, `<Name:Version>` |
 
 3. On the **Settings** tab, copy the **Authorized redirect URI** and register it on the Daon OIDC client.
-4. Copy the connection's **resource ID** (shown in the connection details / console URL) — the login
-   connection references it.
+   The login connection created in Step 2 picks this connection from a drop-down — nothing to copy.
 
 ### Step 2 — Create the Daon TrustX Authenticator (login) connection
 
@@ -142,8 +141,14 @@ $IS_HOME/bin/wso2server.sh restart
 | Field | Value |
 |---|---|
 | **Name** | e.g. `Daon TrustX Login` |
-| **Daon Verifier ID** | Resource ID of the Identity Verifier connection from Step 1 |
+| **Daon Identity Verifier** | Pick the Identity Verifier connection from Step 1 in the drop-down |
 | **Login Process Definition** | PD for login/recovery re-verification, `<Name:Version>` |
+
+> The **Daon Identity Verifier** drop-down lists only the Daon Identity Verifier connections of the
+> organization and stores the selected connection's resource ID in `daon_idp_id`. It needs a console
+> built from the patched `identity-apps` fork (the `select` field type plus the `optionsSource`
+> resolver); on a stock console the field falls back to a free-text box where the resource ID
+> (shown in the connection details / console URL) has to be pasted.
 
 You can create several login connections (e.g. per application, with different login PDs) all
 referencing the same Identity Verifier connection; they share one enrolment.
@@ -151,7 +156,7 @@ referencing the same Identity Verifier connection; they share one enrolment.
 ### Step 3 — Map attributes
 
 On the **Identity Verifier** connection's **Attributes** tab, map Daon claim names to WSO2 local
-claims (these drive provisioning and verification):
+claims (these drive verification):
 
 | WSO2 Local Claim | Daon Claim Name |
 |---|---|
@@ -217,9 +222,10 @@ federated association (local user ↔ Daon subject), not a user claim.
 |---|---|---|
 | Redirect to Daon fails / missing endpoint | Authorization/token endpoint blank on the connection | Set the OIDC endpoint URLs on the **Settings** tab |
 | `401` on token exchange | Wrong `Client ID` / `Client Secret` | Verify credentials match the Daon OIDC client |
+| `401` on token exchange with correct credentials | Daon client requires HTTP Basic client authentication; the OIDC authenticator/executor send the credentials in the request body by default | Set the `IsBasicAuthEnabled` authenticator property to `true` on the connection (management API) |
 | No `acr_values` sent | Process definition not configured | Set the enrol PD on the Identity Verifier connection (enrolment) or the login PD on the login connection (login/recovery) |
 | Enrolment runs plain OIDC (no Daon verification) | An old stock-OIDC IdP connection was added to the enrolment flow | Use a **Daon Identity Verifier** connection — only a `DaonAuthenticator`-type connection binds `DaonExecutor` |
-| Login "not enrolled" for a user enrolled elsewhere | Login connection's **Daon Verifier ID** points at a different Identity Verifier connection than the one used to enrol | Point all connections at the same Identity Verifier connection (they share its association) |
+| Login "not enrolled" for a user enrolled elsewhere | Login connection's **Daon Identity Verifier** points at a different Identity Verifier connection than the one used to enrol | Point all connections at the same Identity Verifier connection (they share its association) |
 | Login/recovery fails with "not enrolled with Daon" | User has no Daon association (never enrolled via registration, or `FederatedAssociationManager` unavailable) | Enrol the user through a Daon registration flow first; confirm Daon runs after user identification |
 | Verified attributes not provisioned | Attribute mapping missing on the connection | Add the mapping on the **Attributes** tab |
 | Names swapped | Daon emits `<family>^<given>` order | Adjust the split order in `DaonExecutor#populateNameClaims` |

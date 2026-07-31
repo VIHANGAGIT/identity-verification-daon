@@ -21,36 +21,38 @@ package org.wso2.carbon.identity.verification.daon.connector.constants;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonClientException;
 
 /**
- * Constants used in the Daon TrustX connector.
+ * Constants used across the Daon TrustX connector — the API client, the login authenticator and the
+ * flow executor.
  */
 public class DaonConstants {
 
     private static final String IDV_ERROR_PREFIX = "DIDV-";
 
+    private DaonConstants() {
+    }
+
     public static final String DAON = "DAON";
 
-    /**
-     * IdV provider configuration property keys.
+    /*
+     * The standard OIDC request/response parameters (client id, endpoints, scope, response type, grant
+     * type, code, state, redirect URI) are not defined here: the authenticator and the executor extend
+     * OpenIDConnectAuthenticator / OpenIDConnectExecutor, which own the protocol and read those keys via
+     * OIDCAuthenticatorConstants. Only the Daon-specific parameters below are needed.
      */
-    public static final String CLIENT_ID = "client_id";
-    public static final String CLIENT_SECRET = "client_secret";
-    public static final String AUTHORIZATION_ENDPOINT_URL = "authorization_endpoint";
-    public static final String TOKEN_ENDPOINT_URL = "token_endpoint";
-    public static final String SCOPE = "scope";
-    public static final String CALLBACK_URL = "callback_url";
+
+    /** OIDC login_hint query parameter used to pre-identify the user on the Daon authorization endpoint. */
+    public static final String LOGIN_HINT = "login_hint";
+
+    /** OIDC request parameter carrying the selected Daon process definition. */
+    public static final String ACR_VALUES_PARAM = "acr_values";
 
     /**
-     * OIDC protocol constants.
+     * Standard OAuth2/OIDC error parameter returned on the callback when the user cancels/declines
+     * verification or Daon fails (in place of {@code code}). The error code itself is read via
+     * {@code OIDCAuthenticatorConstants.OAUTH2_ERROR}; there is no stock constant for the human-readable
+     * {@code error_description}, so it is defined here.
      */
-    public static final String REDIRECT_URI = "redirect_uri";
-    public static final String STATUS = "status";
-    public static final String RESPONSE_TYPE = "response_type";
-    public static final String RESPONSE_TYPE_CODE = "code";
-    public static final String GRANT_TYPE = "grant_type";
-    public static final String GRANT_TYPE_AUTHORIZATION_CODE = "authorization_code";
-    public static final String ACCESS_TOKEN = "access_token";
-    public static final String ID_TOKEN = "id_token";
-    public static final String STATE = "state";
+    public static final String OAUTH2_ERROR_DESCRIPTION = "error_description";
 
     /**
      * OIDC claims request parameter and verified_claims response keys.
@@ -62,7 +64,6 @@ public class DaonConstants {
      */
     public static final String CLAIM_VALUE_MEMBER = "value";
     public static final String VERIFIED_CLAIMS = "verified_claims";
-    public static final String VERIFIED_CLAIMS_ID_TOKEN = "verifiedClaims";
     public static final String VERIFICATION = "verification";
     public static final String TRUST_FRAMEWORK = "trust_framework";
     public static final String TRUST_FRAMEWORK_VALUE = "daon-identify-1";
@@ -81,12 +82,27 @@ public class DaonConstants {
     public static final String CLAIM_DOCUMENT_PERSONAL_NUMBER = "document_personal_number";
 
     /**
-     * HTTP constants.
+     * Daon claim keys inside the "claims" JWT object, and the separator Daon uses inside its
+     * multi-value fields.
      */
-    public static final String APPLICATION_JSON = "application/json";
-    public static final String APPLICATION_FORM_URLENCODED = "application/x-www-form-urlencoded";
-    public static final String BEARER_PREFIX = "Bearer ";
-    public static final String BASIC_PREFIX = "Basic ";
+    public static final String CLAIM_ADDRESS = "address";
+    public static final String CLAIM_ADDRESS_FORMATTED = "formatted";
+    public static final String DAON_FIELD_SEPARATOR = "^";
+
+    /**
+     * Top-level JWT claim field names in the Daon ID token.
+     */
+    public static final String JWT_SUBJECT_CLAIM = "sub";
+    public static final String JWT_VERIFIED_CLAIMS_OBJECT = "verifiedClaims";
+    public static final String JWT_CLAIMS_OBJECT = "claims";
+
+    /**
+     * Daon preferred_username claim — the Daon-assigned identifier returned in the ID token.
+     * Stored in the federated association after successful verification and used as login_hint during
+     * face auth.
+     */
+    public static final String JWT_PREFERRED_USERNAME_CLAIM = "preferred_username";
+    public static final String PREFERRED_USERNAME_CLAIM_URI = "http://wso2.org/daon/claims/preferred_username";
 
     /**
      * Metadata keys for storing Daon verification related details per claim.
@@ -98,14 +114,103 @@ public class DaonConstants {
     public static final String DAON_AUTHORIZATION_URL = "daon_authorization_url";
 
     /**
-     * Daon preferred_username claim — the Daon-assigned identifier returned in the ID token.
-     * Stored in the IDV claim store after successful IDV and used as login_hint during face auth.
+     * Name of the federated authenticator handling the Daon login (re-verification) step, and the
+     * friendly name shown for it.
      */
-    public static final String JWT_PREFERRED_USERNAME_CLAIM = "preferred_username";
-    public static final String PREFERRED_USERNAME_CLAIM_URI = "http://wso2.org/daon/claims/preferred_username";
+    public static final String AUTHENTICATOR_NAME = "DaonAuthenticator";
+    public static final String AUTHENTICATOR_FRIENDLY_NAME = "Daon TrustX";
 
-    /** OIDC login_hint query parameter used to pre-identify the user on the Daon authorization endpoint. */
-    public static final String LOGIN_HINT = "login_hint";
+    /**
+     * Authenticator configuration property key for the Daon <b>login</b> process definition (PD),
+     * configured on the Daon TrustX Authenticator connection. It drives the login (re-verification)
+     * flow and the password-recovery flow, and is sent to Daon as {@code acr_values} in the format
+     * {@code <ProcessDefinitionName:Version>}. Enrolment flows (registration, invited-user) use the
+     * enrol PD configured on the referenced Daon IDP instead ({@link #DAON_ENROL_PD}).
+     */
+    public static final String DAON_LOGIN_PD = "daon_login_pd";
+
+    /**
+     * Configuration property key for the Daon <b>enrol</b> process definition (PD), configured on the
+     * referenced Daon TrustX IDP connection (not on the authenticator). It drives the enrolment flows
+     * (registration and invited-user) and is sent to Daon as {@code acr_values}. Resolved at runtime
+     * from the referenced IDP alongside its OIDC configuration.
+     */
+    public static final String DAON_ENROL_PD = "daon_enrol_pd";
+
+    /**
+     * Authenticator configuration property key holding the resource id (UUID) of the referenced Daon
+     * OIDC IDP connection. The Daon TrustX Authenticator connection carries no OIDC credentials itself;
+     * the client id/secret, authorize/token endpoints, scopes and enrol process definition are resolved
+     * at runtime from this referenced IDP via {@link org.wso2.carbon.idp.mgt.IdpManager#getIdPByResourceId}.
+     */
+    public static final String DAON_IDP_ID = "daon_idp_id";
+
+    /**
+     * Internal authenticator-property key used to carry the resolved process definition into
+     * {@code getAdditionalQueryParams()} for the executor (registration / recovery) flows.
+     */
+    public static final String DAON_SELECTED_PD = "daon_selected_pd";
+
+    /**
+     * Property key used to pass the comma-separated list of Daon claim names (from the IDP claim
+     * mappings) through the authenticator properties so {@code getAdditionalQueryParams()} can build
+     * the {@code claims} request parameter dynamically.
+     */
+    public static final String DAON_CLAIM_NAMES = "daon_claim_names";
+
+    /**
+     * Property key used to carry the pre-known values of the mapped claims (as a JSON object keyed by
+     * Daon claim name) through the authenticator properties, so {@code getAdditionalQueryParams()} can
+     * send them as OIDC value-requests in the {@code claims} parameter. Populated for the enrolment
+     * flows from attributes the user already has before Daon is triggered.
+     */
+    public static final String DAON_CLAIM_VALUES = "daon_claim_values";
+
+    /**
+     * Property key used to carry the resolved {@code login_hint} (Daon {@code preferred_username})
+     * into {@code getAdditionalQueryParams()} for the password recovery face-auth flow.
+     */
+    public static final String DAON_LOGIN_HINT = "daon_login_hint";
+
+    /**
+     * Flow-context property keys carrying the Daon federated association (IDP name + Daon subject /
+     * preferred_username) from {@code DaonExecutor} to {@code DaonFederatedAssociationListener}, which
+     * persists it once the flow completes and the user ID is available. The verification state lives in
+     * the federated association store (IDP_USER_ID) — no custom user claims are required.
+     */
+    public static final String DAON_FED_IDP_NAME = "daon_fed_idp_name";
+    public static final String DAON_FED_SUBJECT = "daon_fed_subject";
+
+    /** Flow type strings returned by {@code FlowExecutionContext.getFlowType()}. */
+    public static final String FLOW_TYPE_PASSWORD_RECOVERY = "PASSWORD_RECOVERY";
+    public static final String FLOW_TYPE_REGISTRATION = "REGISTRATION";
+    public static final String FLOW_TYPE_INVITED_USER_REGISTRATION = "INVITED_USER_REGISTRATION";
+
+    /**
+     * Stable error code surfaced to the authentication retry page when a user who is not enrolled with
+     * Daon reaches the Daon login step. The framework drops an {@code AuthenticationFailedException}'s
+     * error code before it reaches the portal, so the login authenticator redirects to the retry page
+     * with this code as the {@code errorCode} query param, which the portal switches on to show a
+     * dedicated "not enrolled" message.
+     */
+    public static final String USER_NOT_ENROLLED_ERROR_CODE = "DAON-60001";
+
+    /**
+     * i18n keys passed to the authentication retry page (as status / status message) when a not-enrolled
+     * user reaches the Daon login step. The retry page resolves these from its resource bundle, so the
+     * displayed text stays localizable and no raw sentence is hard-coded in the authenticator.
+     */
+    public static final String NOT_ENROLLED_RETRY_STATUS = "daon.user.not.enrolled.message";
+    public static final String NOT_ENROLLED_RETRY_STATUS_MSG = "daon.user.not.enrolled.description";
+
+    // Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
+    public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";
+
+    public static final String USER_ID_CLAIM = "http://wso2.org/claims/userid";
+
+    // WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
+    public static final String WSO2_LASTNAME_CLAIM_URI = "http://wso2.org/claims/lastname";
+    public static final String WSO2_GIVENNAME_CLAIM_URI = "http://wso2.org/claims/givenname";
 
     /**
      * Error messages.

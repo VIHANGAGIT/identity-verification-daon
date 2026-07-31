@@ -26,7 +26,6 @@
     <packaging>pom</packaging>
     <modules>
         <module>components/org.wso2.carbon.identity.verification.daon.connector</module>
-        <module>components/org.wso2.carbon.identity.verification.daon.authenticator</module>
     </modules>
 
     <dependencyManagement>
@@ -234,11 +233,6 @@
                 <groupId>org.wso2.carbon.identity.organization.management.core</groupId>
                 <artifactId>org.wso2.carbon.identity.organization.management.service</artifactId>
                 <version>${identity.organization.management.service.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.wso2.carbon.identity.verification</groupId>
-                <artifactId>org.wso2.carbon.identity.verification.daon.connector</artifactId>
-                <version>${project.version}</version>
             </dependency>
             <!-- Testing related dependencies -->
             <dependency>

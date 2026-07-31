@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator;
+package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
 import org.wso2.carbon.identity.application.common.model.User;
@@ -25,8 +25,8 @@ import org.wso2.carbon.identity.flow.execution.engine.listener.AbstractFlowExecu
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionStep;
 
-import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_FED_IDP_NAME;
-import static org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants.DAON_FED_SUBJECT;
+import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.DAON_FED_IDP_NAME;
+import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.DAON_FED_SUBJECT;
 
 /**
  * Persists the Daon federated association (local user &lt;-&gt; Daon subject) once a registration flow

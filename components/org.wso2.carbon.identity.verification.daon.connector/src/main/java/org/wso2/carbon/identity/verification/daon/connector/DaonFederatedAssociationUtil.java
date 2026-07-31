@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator;
+package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -26,7 +26,7 @@ import org.wso2.carbon.identity.user.profile.mgt.association.federation.Federate
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerClientException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.model.FederatedAssociation;
-import org.wso2.carbon.identity.verification.daon.authenticator.internal.DaonAuthenticatorDataHolder;
+import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 /**
@@ -65,7 +65,7 @@ final class DaonFederatedAssociationUtil {
         if (user == null || StringUtils.isBlank(idpName)) {
             return null;
         }
-        FederatedAssociationManager manager = DaonAuthenticatorDataHolder.getFederatedAssociationManager();
+        FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
         if (manager == null) {
             LOG.warn("FederatedAssociationManager unavailable; cannot resolve Daon verification state.");
             return null;
@@ -103,7 +103,7 @@ final class DaonFederatedAssociationUtil {
         if (user == null || StringUtils.isBlank(idpName) || StringUtils.isBlank(daonSubject)) {
             return;
         }
-        FederatedAssociationManager manager = DaonAuthenticatorDataHolder.getFederatedAssociationManager();
+        FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
         if (manager == null) {
             LOG.warn("FederatedAssociationManager unavailable; Daon verification state not persisted.");
             return;

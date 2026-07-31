@@ -17,10 +17,10 @@
  *
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator;
+package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.json.JSONObject;
-import org.wso2.carbon.identity.verification.daon.authenticator.constants.DaonAuthenticatorConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -68,9 +68,9 @@ final class DaonJwtUtil {
         }
         if (value instanceof JSONObject) {
             JSONObject nested = (JSONObject) value;
-            if (DaonAuthenticatorConstants.CLAIM_ADDRESS.equals(key)
-                    && nested.has(DaonAuthenticatorConstants.CLAIM_ADDRESS_FORMATTED)) {
-                Object formatted = nested.get(DaonAuthenticatorConstants.CLAIM_ADDRESS_FORMATTED);
+            if (DaonConstants.CLAIM_ADDRESS.equals(key)
+                    && nested.has(DaonConstants.CLAIM_ADDRESS_FORMATTED)) {
+                Object formatted = nested.get(DaonConstants.CLAIM_ADDRESS_FORMATTED);
                 return formatted != null && !JSONObject.NULL.equals(formatted) ? formatted.toString() : null;
             }
             return nested.toString();

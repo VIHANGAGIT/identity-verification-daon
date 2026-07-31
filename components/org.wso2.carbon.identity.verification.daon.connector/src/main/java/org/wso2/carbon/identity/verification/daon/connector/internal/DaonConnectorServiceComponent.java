@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.authenticator.internal;
+package org.wso2.carbon.identity.verification.daon.connector.internal;
 
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
@@ -32,21 +32,22 @@ import org.wso2.carbon.identity.flow.execution.engine.graph.Executor;
 import org.wso2.carbon.identity.flow.execution.engine.listener.FlowExecutionListener;
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
-import org.wso2.carbon.identity.verification.daon.authenticator.DaonAuthenticator;
-import org.wso2.carbon.identity.verification.daon.authenticator.DaonExecutor;
-import org.wso2.carbon.identity.verification.daon.authenticator.DaonFederatedAssociationListener;
+import org.wso2.carbon.identity.verification.daon.connector.DaonAuthenticator;
+import org.wso2.carbon.identity.verification.daon.connector.DaonExecutor;
+import org.wso2.carbon.identity.verification.daon.connector.DaonFederatedAssociationListener;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * OSGi service component for the Daon TrustX federated identity provider (authenticator + executor).
+ * OSGi service component for the Daon TrustX connector: registers the login authenticator, the flow
+ * executor and the federated-association listener, and holds the service references they need.
  */
 @Component(
-        name = "daon.identity.authenticator",
+        name = "identity.verification.daon.connector",
         immediate = true)
-public class DaonAuthenticatorServiceComponent {
+public class DaonConnectorServiceComponent {
 
-    private static final Log LOG = LogFactory.getLog(DaonAuthenticatorServiceComponent.class);
+    private static final Log LOG = LogFactory.getLog(DaonConnectorServiceComponent.class);
 
     @Activate
     protected void activate(ComponentContext ctxt) {
@@ -59,10 +60,10 @@ public class DaonAuthenticatorServiceComponent {
             ctxt.getBundleContext().registerService(
                     FlowExecutionListener.class.getName(), new DaonFederatedAssociationListener(), null);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("DaonAuthenticator bundle activated successfully.");
+                LOG.debug("Daon connector bundle activated successfully.");
             }
         } catch (Throwable e) {
-            LOG.fatal("Error while activating DaonAuthenticator bundle", e);
+            LOG.fatal("Error while activating the Daon connector bundle", e);
         }
     }
 
@@ -70,7 +71,7 @@ public class DaonAuthenticatorServiceComponent {
     protected void deactivate(ComponentContext ctxt) {
 
         if (LOG.isDebugEnabled()) {
-            LOG.debug("DaonAuthenticator bundle is deactivated.");
+            LOG.debug("Daon connector bundle is deactivated.");
         }
     }
 
@@ -82,12 +83,12 @@ public class DaonAuthenticatorServiceComponent {
             unbind = "unsetRealmService")
     protected void setRealmService(RealmService realmService) {
 
-        DaonAuthenticatorDataHolder.setRealmService(realmService);
+        DaonConnectorDataHolder.setRealmService(realmService);
     }
 
     protected void unsetRealmService(RealmService realmService) {
 
-        DaonAuthenticatorDataHolder.setRealmService(null);
+        DaonConnectorDataHolder.setRealmService(null);
     }
 
     @Reference(
@@ -98,12 +99,12 @@ public class DaonAuthenticatorServiceComponent {
             unbind = "unsetFederatedAssociationManager")
     protected void setFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
 
-        DaonAuthenticatorDataHolder.setFederatedAssociationManager(federatedAssociationManager);
+        DaonConnectorDataHolder.setFederatedAssociationManager(federatedAssociationManager);
     }
 
     protected void unsetFederatedAssociationManager(FederatedAssociationManager federatedAssociationManager) {
 
-        DaonAuthenticatorDataHolder.setFederatedAssociationManager(null);
+        DaonConnectorDataHolder.setFederatedAssociationManager(null);
     }
 
     @Reference(
@@ -114,12 +115,12 @@ public class DaonAuthenticatorServiceComponent {
             unbind = "unsetOrganizationManager")
     protected void setOrganizationManager(OrganizationManager organizationManager) {
 
-        DaonAuthenticatorDataHolder.setOrganizationManager(organizationManager);
+        DaonConnectorDataHolder.setOrganizationManager(organizationManager);
     }
 
     protected void unsetOrganizationManager(OrganizationManager organizationManager) {
 
-        DaonAuthenticatorDataHolder.setOrganizationManager(null);
+        DaonConnectorDataHolder.setOrganizationManager(null);
     }
 
     @Reference(
@@ -130,11 +131,11 @@ public class DaonAuthenticatorServiceComponent {
             unbind = "unsetIdpManager")
     protected void setIdpManager(IdpManager idpManager) {
 
-        DaonAuthenticatorDataHolder.setIdpManager(idpManager);
+        DaonConnectorDataHolder.setIdpManager(idpManager);
     }
 
     protected void unsetIdpManager(IdpManager idpManager) {
 
-        DaonAuthenticatorDataHolder.setIdpManager(null);
+        DaonConnectorDataHolder.setIdpManager(null);
     }
 }
