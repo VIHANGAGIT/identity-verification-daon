@@ -109,6 +109,36 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         return DAON_EXECUTOR_NAME;
     }
 
+    /**
+     * Declares the flows this executor may be used in. This is what makes it selectable as a step in
+     * the flow composer once the connector jar is deployed, with no change needed in the flow
+     * management API.
+     */
+    @Override
+    public Set<FlowTypes> getSupportedFlowTypes() {
+
+        return EnumSet.of(FlowTypes.REGISTRATION,
+                FlowTypes.INVITED_USER_REGISTRATION,
+                FlowTypes.PASSWORD_RECOVERY);
+    }
+
+    /**
+     * Describes how the flow composer should present this step. The associated authenticator lets the
+     * flow management API work out which connections apply, so no hardcoded mapping is needed there.
+     */
+    @Override
+    public FlowExecutorMetadata getExecutorMetadata() {
+
+        return FlowExecutorMetadata.builder()
+                .displayName(DaonConstants.AUTHENTICATOR_FRIENDLY_NAME + " Verification")
+                .description("Verifies the user's identity with Daon TrustX before the flow continues.")
+                .icon("assets/images/icons/daon.svg")
+                .tags(Collections.singletonList(FlowExecutorConstants.Tags.RECOVERY_FACTOR))
+                .associatedAuthenticator(DaonConstants.AUTHENTICATOR_NAME)
+                .connectionRequired(true)
+                .build();
+    }
+
     @Override
     public ExecutorResponse execute(FlowExecutionContext flowExecutionContext) {
 
