@@ -19,8 +19,12 @@
 
 package org.wso2.carbon.identity.verification.daon.connector;
 
+import org.json.JSONException;
 import org.json.JSONObject;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonServerException;
 
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
@@ -35,19 +39,21 @@ final class DaonJwtUtil {
     /**
      * Base64URL-decodes the payload segment of a JWT and returns it as a {@link JSONObject}.
      *
-     * @throws IllegalArgumentException if the JWT has fewer than 2 segments or the payload cannot be decoded
+     * @throws DaonServerException {@code DAON-65003} if the JWT has fewer than 2 segments,
+     *                             {@code DAON-65004} if the payload cannot be decoded or parsed.
      */
-    static JSONObject decodeJwtPayload(String idToken) {
+    static JSONObject decodeJwtPayload(String idToken) throws DaonServerException {
         String[] parts = idToken.split("\\.");
         if (parts.length < 2) {
-            throw new IllegalArgumentException(
-                    "Invalid JWT: expected at least 2 segments, got " + parts.length);
+            throw DaonExceptionMgt.handleServerException(ErrorMessage.ERROR_INVALID_ID_TOKEN, parts.length);
         }
         try {
             byte[] payload = Base64.getUrlDecoder().decode(parts[1]);
             return new JSONObject(new String(payload, StandardCharsets.UTF_8));
-        } catch (Exception e) {
-            throw new IllegalArgumentException("Failed to decode Daon ID token payload", e);
+        } catch (IllegalArgumentException | JSONException e) {
+            // IllegalArgumentException: not valid Base64URL. JSONException: decoded bytes are not a JSON
+            // object. Both mean the same thing to the caller — the ID token payload is unreadable.
+            throw DaonExceptionMgt.handleServerException(ErrorMessage.ERROR_DECODING_ID_TOKEN, e);
         }
     }
 

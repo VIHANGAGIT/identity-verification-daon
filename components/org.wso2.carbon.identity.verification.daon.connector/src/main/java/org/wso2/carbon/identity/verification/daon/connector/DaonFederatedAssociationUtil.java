@@ -26,6 +26,8 @@ import org.wso2.carbon.identity.user.profile.mgt.association.federation.Federate
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerClientException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.model.FederatedAssociation;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
@@ -63,11 +65,13 @@ final class DaonFederatedAssociationUtil {
     static String getAssociatedDaonSubject(User user, String idpName) {
 
         if (user == null || StringUtils.isBlank(idpName)) {
+            LOG.debug("Null user or blank IDP name; cannot resolve the Daon verification state.");
             return null;
         }
         FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
         if (manager == null) {
-            LOG.warn("FederatedAssociationManager unavailable; cannot resolve Daon verification state.");
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_FED_ASSOCIATION_MANAGER_UNAVAILABLE,
+                    "cannot resolve the Daon verification state"));
             return null;
         }
         try {
@@ -89,7 +93,7 @@ final class DaonFederatedAssociationUtil {
                         + "not exist); treating as not verified. IDP: " + idpName, e);
             }
         } catch (FederatedAssociationManagerException e) {
-            LOG.warn("Error resolving Daon federated association for the user; treating as not verified.", e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_FED_ASSOCIATION, idpName), e);
         }
         return null;
     }
@@ -101,18 +105,21 @@ final class DaonFederatedAssociationUtil {
     static void createAssociation(User user, String idpName, String daonSubject) {
 
         if (user == null || StringUtils.isBlank(idpName) || StringUtils.isBlank(daonSubject)) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+                    "the user, the IDP name or the Daon subject is missing"));
             return;
         }
         FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
         if (manager == null) {
-            LOG.warn("FederatedAssociationManager unavailable; Daon verification state not persisted.");
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_FED_ASSOCIATION_MANAGER_UNAVAILABLE,
+                    "the Daon verification state was not persisted"));
             return;
         }
         try {
             manager.createFederatedAssociation(user, idpName, daonSubject);
         } catch (FederatedAssociationManagerException e) {
             // Typically already associated (re-verification) — safe to ignore.
-            LOG.warn("Could not create Daon federated association (may already exist) for IDP: " + idpName, e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_CREATING_FED_ASSOCIATION, idpName), e);
         }
     }
 }

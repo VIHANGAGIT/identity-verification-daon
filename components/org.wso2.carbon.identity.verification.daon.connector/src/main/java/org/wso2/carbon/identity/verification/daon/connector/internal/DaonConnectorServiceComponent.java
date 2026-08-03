@@ -35,6 +35,8 @@ import org.wso2.carbon.identity.user.profile.mgt.association.federation.Federate
 import org.wso2.carbon.identity.verification.daon.connector.DaonAuthenticator;
 import org.wso2.carbon.identity.verification.daon.connector.DaonExecutor;
 import org.wso2.carbon.identity.verification.daon.connector.DaonFederatedAssociationListener;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
@@ -62,8 +64,10 @@ public class DaonConnectorServiceComponent {
             if (LOG.isDebugEnabled()) {
                 LOG.debug("Daon connector bundle activated successfully.");
             }
-        } catch (Throwable e) {
-            LOG.fatal("Error while activating the Daon connector bundle", e);
+        } catch (Exception e) {
+            // Errors (OutOfMemoryError and friends) are deliberately not caught here — a bundle activator
+            // must not swallow them.
+            LOG.fatal(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_ACTIVATING_BUNDLE), e);
         }
     }
 

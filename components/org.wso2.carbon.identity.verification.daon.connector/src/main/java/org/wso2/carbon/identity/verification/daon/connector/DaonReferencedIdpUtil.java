@@ -27,6 +27,8 @@ import org.wso2.carbon.identity.application.common.model.IdentityProvider;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
 import org.wso2.carbon.idp.mgt.IdentityProviderManagementException;
 import org.wso2.carbon.idp.mgt.IdpManager;
@@ -124,17 +126,19 @@ final class DaonReferencedIdpUtil {
 
         Map<String, String> config = new HashMap<>();
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
+            LOG.debug("Blank Daon IDP resource id or tenant domain; nothing to resolve.");
             return config;
         }
         IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
         if (idpManager == null) {
-            LOG.warn("IdpManager unavailable; cannot resolve the referenced Daon IDP: " + idpResourceId);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_IDP_MANAGER_UNAVAILABLE, idpResourceId));
             return config;
         }
         try {
             IdentityProvider idp = idpManager.getIdPByResourceId(idpResourceId, tenantDomain, false);
             if (idp == null) {
-                LOG.warn("Referenced Daon IDP not found for resource id: " + idpResourceId);
+                LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_FOUND,
+                        idpResourceId));
                 return config;
             }
             FederatedAuthenticatorConfig authConfig = idp.getDefaultAuthenticatorConfig();
@@ -145,7 +149,8 @@ final class DaonReferencedIdpUtil {
                 }
             }
             if (authConfig == null || authConfig.getProperties() == null) {
-                LOG.warn("Referenced Daon IDP has no authenticator configuration: " + idpResourceId);
+                LOG.warn(DaonExceptionMgt.errorLog(
+                        ErrorMessage.ERROR_REFERENCED_IDP_NO_AUTHENTICATOR_CONFIG, idpResourceId));
                 return config;
             }
             for (Property property : authConfig.getProperties()) {
@@ -154,7 +159,7 @@ final class DaonReferencedIdpUtil {
                 }
             }
         } catch (IdentityProviderManagementException e) {
-            LOG.error("Error resolving the referenced Daon IDP for resource id: " + idpResourceId, e);
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_REFERENCED_IDP, idpResourceId), e);
         }
         return config;
     }
@@ -174,18 +179,24 @@ final class DaonReferencedIdpUtil {
     static String resolveIdpName(String idpResourceId, String tenantDomain) {
 
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
+            LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the IDP name.");
             return null;
         }
         IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
         if (idpManager == null) {
-            LOG.warn("IdpManager unavailable; cannot resolve the referenced Daon IDP: " + idpResourceId);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_IDP_MANAGER_UNAVAILABLE, idpResourceId));
             return null;
         }
         try {
             IdentityProvider idp = idpManager.getIdPByResourceId(idpResourceId, tenantDomain, false);
-            return idp != null ? idp.getIdentityProviderName() : null;
+            if (idp == null) {
+                LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_FOUND,
+                        idpResourceId));
+                return null;
+            }
+            return idp.getIdentityProviderName();
         } catch (IdentityProviderManagementException e) {
-            LOG.error("Error resolving the referenced Daon IDP name for resource id: " + idpResourceId, e);
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_REFERENCED_IDP, idpResourceId), e);
             return null;
         }
     }

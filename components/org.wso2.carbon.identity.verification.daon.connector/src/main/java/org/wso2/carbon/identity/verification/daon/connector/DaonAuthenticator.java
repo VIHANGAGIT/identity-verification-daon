@@ -34,6 +34,8 @@ import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 import java.io.IOException;
@@ -90,11 +92,6 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     private static final long serialVersionUID = 1L;
     private static final Log LOG = LogFactory.getLog(DaonAuthenticator.class);
 
-    private static final String CONFIG_RESOLUTION_ERROR =
-            "Could not resolve the Daon OIDC configuration. For a login connection, check the Daon Verifier "
-                    + "ID it references; for a Daon Identity Verifier connection, check its own client id "
-                    + "and endpoint configuration.";
-
     @Override
     public String getName() {
         return DaonConstants.AUTHENTICATOR_NAME;
@@ -118,7 +115,8 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         Map<String, String> props = prepareRequest(context);
         if (StringUtils.isBlank(props.get(OIDCAuthenticatorConstants.CLIENT_ID))
                 || StringUtils.isBlank(props.get(OIDCAuthenticatorConstants.OAUTH2_AUTHZ_URL))) {
-            throw new AuthenticationFailedException(CONFIG_RESOLUTION_ERROR);
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_OIDC_CONFIG_NOT_RESOLVED, "authorization"));
+            throw DaonExceptionMgt.handleAuthFailedException(ErrorMessage.ERROR_OIDC_CONFIG_NOT_RESOLVED);
         }
 
         // Login only serves users already enrolled with Daon: the association's federated user id is the
@@ -152,12 +150,14 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         String error = request.getParameter(OIDCAuthenticatorConstants.OAUTH2_ERROR);
         if (StringUtils.isNotBlank(error)) {
             String errorDescription = request.getParameter(DaonConstants.OAUTH2_ERROR_DESCRIPTION);
+            ErrorMessage callbackError = DaonCallbackErrors.resolveError(error, errorDescription);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Daon returned an error on the login callback. error=" + error
-                        + ", error_description=" + errorDescription);
+                LOG.debug(callbackError.getCode() + " - Daon returned an error on the login callback. error="
+                        + error + ", error_description=" + errorDescription);
             }
-            throw new AuthenticationFailedException(
-                    DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));
+            // The framework drops the error code before the portal renders, so the code here serves the
+            // server log; the user sees the catalogue's message.
+            throw DaonExceptionMgt.handleAuthFailedException(callbackError);
         }
 
         // The framework repopulates the authenticator properties from the connection on every request, so
@@ -165,7 +165,8 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         Map<String, String> props = prepareRequest(context);
         if (StringUtils.isBlank(props.get(OIDCAuthenticatorConstants.CLIENT_ID))
                 || StringUtils.isBlank(props.get(OIDCAuthenticatorConstants.OAUTH2_TOKEN_URL))) {
-            throw new AuthenticationFailedException(CONFIG_RESOLUTION_ERROR);
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_OIDC_CONFIG_NOT_RESOLVED, "token"));
+            throw DaonExceptionMgt.handleAuthFailedException(ErrorMessage.ERROR_OIDC_CONFIG_NOT_RESOLVED);
         }
         super.processAuthenticationResponse(request, response, context);
     }
@@ -289,10 +290,14 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
 
         AuthenticatedUser authenticatedUser = context.getLastAuthenticatedUser();
         if (authenticatedUser == null) {
+            // Distinguished from a genuine "not enrolled" outcome: all of these return null and end up on
+            // the same retry page, so the log line is the only way to tell them apart afterwards.
+            LOG.debug("No last authenticated user in the context; cannot resolve the Daon subject.");
             return null;
         }
         String daonIdpName = resolveDaonIdpName(context);
         if (StringUtils.isBlank(daonIdpName)) {
+            LOG.debug("Could not resolve the Daon IDP name; cannot resolve the Daon subject.");
             return null;
         }
         String username = UserCoreUtil.removeDomainFromName(authenticatedUser.getUserName());
@@ -314,9 +319,20 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
 
         String idpResourceId = context.getAuthenticatorProperties().get(DAON_IDP_ID);
         if (StringUtils.isNotBlank(idpResourceId)) {
-            return DaonReferencedIdpUtil.resolveIdpName(idpResourceId, context.getTenantDomain());
+            String referencedIdpName =
+                    DaonReferencedIdpUtil.resolveIdpName(idpResourceId, context.getTenantDomain());
+            if (StringUtils.isBlank(referencedIdpName)) {
+                // Infrastructure or configuration failure, not an enrolment problem — DaonReferencedIdpUtil
+                // has already logged the specific cause with its own code.
+                LOG.debug("Could not resolve the referenced Daon IDP name for resource id: " + idpResourceId);
+            }
+            return referencedIdpName;
         }
-        return context.getExternalIdP() != null ? context.getExternalIdP().getIdPName() : null;
+        if (context.getExternalIdP() == null) {
+            LOG.debug("No external IDP in the authentication context; cannot resolve the Daon IDP name.");
+            return null;
+        }
+        return context.getExternalIdP().getIdPName();
     }
 
     /**
@@ -340,10 +356,10 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
                     DaonConstants.NOT_ENROLLED_RETRY_STATUS_MSG);
             context.setCurrentAuthenticator(getName());
         } catch (IOException e) {
-            LOG.error("Failed to redirect the not-enrolled user to the Daon login retry page.", e);
-            throw new AuthenticationFailedException(
-                    DaonConstants.USER_NOT_ENROLLED_ERROR_CODE,
-                    "The user is not enrolled with Daon TrustX.");
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REDIRECTING_TO_RETRY_PAGE), e);
+            // The user's actual problem is that they are not enrolled, so report that code; the redirect
+            // failure is the reason they see a generic failure instead of the retry page.
+            throw DaonExceptionMgt.handleAuthFailedException(ErrorMessage.ERROR_USER_NOT_ENROLLED, e);
         }
     }
 }

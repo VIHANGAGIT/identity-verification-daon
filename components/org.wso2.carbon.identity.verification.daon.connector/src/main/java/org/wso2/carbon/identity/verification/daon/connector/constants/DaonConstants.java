@@ -18,15 +18,17 @@
 
 package org.wso2.carbon.identity.verification.daon.connector.constants;
 
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonClientException;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 
 /**
  * Constants used across the Daon TrustX connector — the API client, the login authenticator and the
  * flow executor.
+ *
+ * <p>Error codes and messages live in {@link DaonErrorConstants}.</p>
  */
 public class DaonConstants {
-
-    private static final String IDV_ERROR_PREFIX = "DIDV-";
 
     private DaonConstants() {
     }
@@ -192,8 +194,11 @@ public class DaonConstants {
      * error code before it reaches the portal, so the login authenticator redirects to the retry page
      * with this code as the {@code errorCode} query param, which the portal switches on to show a
      * dedicated "not enrolled" message.
+     *
+     * <p>Resolves to {@code DAON-60001}. This literal is a published contract with the recovery portal
+     * and the retry page, so {@link ErrorMessage#ERROR_USER_NOT_ENROLLED} must keep its code.</p>
      */
-    public static final String USER_NOT_ENROLLED_ERROR_CODE = "DAON-60001";
+    public static final String USER_NOT_ENROLLED_ERROR_CODE = ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode();
 
     /**
      * i18n keys passed to the authentication retry page (as status / status message) when a not-enrolled
@@ -211,88 +216,6 @@ public class DaonConstants {
     // WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
     public static final String WSO2_LASTNAME_CLAIM_URI = "http://wso2.org/claims/lastname";
     public static final String WSO2_GIVENNAME_CLAIM_URI = "http://wso2.org/claims/givenname";
-
-    /**
-     * Error messages.
-     */
-    public enum ErrorMessage {
-
-        ERROR_VERIFICATION_FLOW_STATUS_NOT_FOUND("10000",
-                "Verification flow status is missing or undefined in the request"),
-        ERROR_IDENTITY_VERIFICATION("10001",
-                "Error while verifying the user identity through Daon TrustX."),
-        ERROR_CLAIM_VALUE_NOT_EXIST("10002",
-                "Required identity verification claim value does not exist."),
-        ERROR_CREATING_RESPONSE("10003", "Error while creating the response."),
-        ERROR_VERIFICATION_ALREADY_COMPLETED("10004",
-                "Verification already completed. Cannot reinitiate a completed verification."),
-        ERROR_INITIATING_DAON_VERIFICATION("10005",
-                "Error occurred while initiating the verification in Daon for the user: %s."),
-        ERROR_IDV_PROVIDER_INVALID_OR_DISABLED("10006",
-                "IdVProvider is not available or not enabled"),
-        ERROR_RESOLVING_IDV_PROVIDER("10007",
-                "Error encountered while retrieving the identity verification provider."),
-        ERROR_CREATING_HTTP_CLIENT("10008", "Server error encountered while creating http client"),
-        ERROR_DAON_STATE_NOT_FOUND("10009", "No associated Daon state found. " +
-                "Ensure that the verification process has been initiated before attempting to complete " +
-                "or reinitiate it."),
-        ERROR_IDV_PROVIDER_CONFIG_PROPERTIES_EMPTY("10010",
-                "At least one IdVProvider configuration property is empty."),
-        ERROR_INVALID_DAON_VERIFICATION_FLOW_STATUS("10011",
-                "Invalid Daon verification flow status provided."),
-        ERROR_RETRIEVING_CLAIMS_AGAINST_STATE("10012",
-                "No claims found for the provided Daon state; the state may be incorrect or expired."),
-        ERROR_UPDATING_IDV_CLAIM_VERIFICATION_STATUS("10013",
-                "Error occurred while updating IDV claims verification status."),
-        ERROR_BUILDING_DAON_AUTH_URI("10014",
-                "Error occurred while building the Daon OIDC authorization URL."),
-        ERROR_BUILDING_DAON_TOKEN_URI("10015",
-                "Error occurred while building the Daon token endpoint URL."),
-        ERROR_BUILDING_DAON_USERINFO_URI("10016",
-                "Error occurred while building the Daon userinfo endpoint URL."),
-        ERROR_EXCHANGING_CODE_FOR_TOKENS("10017",
-                "Error occurred while exchanging the authorization code for tokens. Status: %s"),
-        ERROR_GETTING_USERINFO("10018",
-                "Error occurred while retrieving user info from Daon. Status: %s"),
-        ERROR_INVALID_BASE_URL("10019", "Invalid Daon base URL provided."),
-        ERROR_INVALID_CLIENT_CREDENTIALS("10020", "Invalid Daon client credentials provided."),
-        ERROR_INVALID_OR_EXPIRED_CODE("10021", "Invalid or expired authorization code provided."),
-        ERROR_STATE_MISMATCH("10022", "State parameter mismatch. Potential CSRF attack detected."),
-        ERROR_CLAIM_MAPPING_NOT_FOUND("10023", "No Daon claim mapping found for the claim URI: %s."),
-        ERROR_REINITIATING_DAON_VERIFICATION("10024",
-                "An error occurred while reinitiating the verification."),
-        ERROR_REINITIATION_NOT_ALLOWED("10025",
-                "Reinitiation not allowed. Verification has already been completed."),
-        ERROR_VERIFICATION_REQUIRED_CLAIMS_NOT_FOUND("10026",
-                "Verification requested claims list cannot be empty."),
-        ERROR_VERIFICATION_ALREADY_INITIATED("10027",
-                "Verification has already been initiated for all requested claims.");
-
-        private final String code;
-        private final String message;
-
-        ErrorMessage(String code, String message) {
-
-            this.code = code;
-            this.message = message;
-        }
-
-        public String getCode() {
-
-            return IDV_ERROR_PREFIX + code;
-        }
-
-        public String getMessage() {
-
-            return message;
-        }
-
-        @Override
-        public String toString() {
-
-            return code + ":" + message;
-        }
-    }
 
     /**
      * Enum representing the various statuses that a verification flow can transition through.
@@ -320,8 +243,8 @@ public class DaonConstants {
                     return flowStatus;
                 }
             }
-            throw new DaonClientException(ErrorMessage.ERROR_INVALID_DAON_VERIFICATION_FLOW_STATUS.getCode(),
-                    ErrorMessage.ERROR_INVALID_DAON_VERIFICATION_FLOW_STATUS.getMessage());
+            throw DaonExceptionMgt.handleClientException(
+                    ErrorMessage.ERROR_INVALID_VERIFICATION_FLOW_STATUS, status);
         }
 
         @Override

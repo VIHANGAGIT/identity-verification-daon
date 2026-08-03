@@ -33,12 +33,19 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.Constants;
 import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
+import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorConstants;
+import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorMetadata;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes;
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.organization.management.service.util.OrganizationManagementUtil;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonException;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonServerException;
 import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
 import org.wso2.carbon.user.api.UserStoreException;
 import org.wso2.carbon.user.core.UniqueIDUserStoreManager;
@@ -46,6 +53,8 @@ import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -67,7 +76,6 @@ import static org.wso2.carbon.identity.verification.daon.connector.constants.Dao
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.FLOW_TYPE_REGISTRATION;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.LOGIN_HINT;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.OAUTH2_ERROR_DESCRIPTION;
-import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.USER_NOT_ENROLLED_ERROR_CODE;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.WSO2_GIVENNAME_CLAIM_URI;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.WSO2_LASTNAME_CLAIM_URI;
 
@@ -113,13 +121,18 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 && StringUtils.isNotBlank(userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR))) {
             String error = userInputs.get(OIDCAuthenticatorConstants.OAUTH2_ERROR);
             String errorDescription = userInputs.get(OAUTH2_ERROR_DESCRIPTION);
+            ErrorMessage callbackError = DaonCallbackErrors.resolveError(error, errorDescription);
             if (LOG.isDebugEnabled()) {
-                LOG.debug("Daon returned an error on the flow callback. error=" + error
-                        + ", error_description=" + errorDescription);
+                LOG.debug(callbackError.getCode() + " - Daon returned an error on the flow callback. error="
+                        + error + ", error_description=" + errorDescription);
             }
             ExecutorResponse errorResponse = new ExecutorResponse();
             errorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
-            errorResponse.setErrorMessage(DaonCallbackErrors.resolveUserFacingMessage(error, errorDescription));
+            // The flow engine copies the code/message/description straight off the ExecutorResponse into the
+            // client error response, so this is the channel that carries the Daon code to the portal.
+            errorResponse.setErrorCode(callbackError.getCode());
+            errorResponse.setErrorMessage(callbackError.getMessage());
+            errorResponse.setErrorDescription(callbackError.getMessage());
             return errorResponse;
         }
 
@@ -130,16 +143,14 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         // association there is no login_hint to send, so fail cleanly instead of attempting enrolment.
         if (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType())
                 && StringUtils.isBlank(flowExecutionContext.getAuthenticatorProperties().get(DAON_LOGIN_HINT))) {
-            String notEnrolledMessage = "Your account is not enrolled with Daon TrustX for identity verification. "
-                    + "Please contact your administrator.";
             ExecutorResponse notEnrolled = new ExecutorResponse();
             notEnrolled.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
             // Set a stable, machine-readable error code so the recovery portal can switch on it (via the
             // flow API's error.code) instead of parsing the message. The flow engine propagates the
             // executor's error code/description straight through to the client error response.
-            notEnrolled.setErrorCode(USER_NOT_ENROLLED_ERROR_CODE);
-            notEnrolled.setErrorMessage(notEnrolledMessage);
-            notEnrolled.setErrorDescription(notEnrolledMessage);
+            notEnrolled.setErrorCode(ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode());
+            notEnrolled.setErrorMessage(ErrorMessage.ERROR_USER_NOT_ENROLLED.getMessage());
+            notEnrolled.setErrorDescription(ErrorMessage.ERROR_USER_NOT_ENROLLED.getMessage());
             return notEnrolled;
         }
         return super.execute(flowExecutionContext);
@@ -217,7 +228,14 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         }
         List<String> claimNames = Arrays.asList(claimNamesStr.split(","));
         Map<String, String> claimValues = parseClaimValues(authenticatorProperties.get(DAON_CLAIM_VALUES));
-        params.put(CLAIMS_PARAM, DaonClaimsRequestBuilder.buildClaimsParam(claimNames, claimValues));
+        try {
+            params.put(CLAIMS_PARAM, DaonClaimsRequestBuilder.buildClaimsParam(claimNames, claimValues));
+        } catch (DaonServerException e) {
+            // getAdditionalQueryParams cannot throw a checked exception (the parent signature forbids it).
+            // Omitting the claims request means Daon returns unrequested claims rather than failing the
+            // flow outright, so log the code and continue.
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_BUILDING_CLAIMS_REQUEST), e);
+        }
         return params;
     }
 
@@ -238,7 +256,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 values.put(key, json.getString(key));
             }
         } catch (org.json.JSONException e) {
-            LOG.warn("Could not parse pre-known Daon claim values; sending claim requests without values.", e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_PARSING_CLAIM_VALUES, DAON_CLAIM_VALUES), e);
         }
         return values;
     }
@@ -256,19 +274,21 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
         String idToken = oAuthResponse.getParam(OIDCAuthenticatorConstants.ID_TOKEN);
         if (StringUtils.isBlank(idToken)) {
-            throw handleFlowEngineServerException("ID token is empty or null.", null);
+            throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND,
+                    flowExecutionContext.getFlowType());
         }
 
         JSONObject idTokenPayload;
         try {
             idTokenPayload = DaonJwtUtil.decodeJwtPayload(idToken);
-        } catch (IllegalArgumentException e) {
-            throw handleFlowEngineServerException(e.getMessage(), e);
+        } catch (DaonException e) {
+            throw DaonExceptionMgt.toFlowServerException(e);
         }
 
         String subject = idTokenPayload.optString(DaonConstants.JWT_SUBJECT_CLAIM, null);
         if (StringUtils.isBlank(subject)) {
-            throw handleFlowEngineServerException("Subject (sub) claim not found in Daon ID token.", null);
+            throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_SUBJECT_CLAIM_NOT_FOUND,
+                    flowExecutionContext.getFlowType());
         }
 
         Map<String, Object> userAttributes = new HashMap<>();
@@ -336,19 +356,21 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
         String idToken = oAuthResponse.getParam(OIDCAuthenticatorConstants.ID_TOKEN);
         if (StringUtils.isBlank(idToken)) {
-            throw handleFlowEngineServerException("ID token is empty or null.", null);
+            throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND,
+                    flowExecutionContext.getFlowType());
         }
         JSONObject idTokenPayload;
         try {
             idTokenPayload = DaonJwtUtil.decodeJwtPayload(idToken);
-        } catch (IllegalArgumentException e) {
-            throw handleFlowEngineServerException(e.getMessage(), e);
+        } catch (DaonException e) {
+            throw DaonExceptionMgt.toFlowServerException(e);
         }
         String returnedPreferredUsername =
                 idTokenPayload.optString(DaonConstants.JWT_PREFERRED_USERNAME_CLAIM, null);
         String returnedSubject = idTokenPayload.optString(DaonConstants.JWT_SUBJECT_CLAIM, null);
         if (StringUtils.isBlank(returnedPreferredUsername) && StringUtils.isBlank(returnedSubject)) {
-            throw handleFlowEngineServerException("No subject identity found in Daon ID token.", null);
+            throw DaonExceptionMgt.handleFlowServerException(
+                    ErrorMessage.ERROR_NO_SUBJECT_IDENTITY_IN_ID_TOKEN);
         }
 
         // Bind the verified identity back to the account being recovered. login_hint is only a hint per
@@ -363,9 +385,10 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                         + "Expected: " + expectedSubject + ", returned preferred_username: "
                         + returnedPreferredUsername + ", returned sub: " + returnedSubject);
             }
-            throw handleFlowEngineServerException(
-                    "Identity verification failed: the verified identity does not match the user being "
-                            + "recovered.", null);
+            // A client error, not a server fault: Daon worked correctly, it just verified someone other
+            // than the account holder being recovered.
+            throw DaonExceptionMgt.handleFlowClientException(ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH,
+                    expectedSubject);
         }
         return new HashMap<>();
     }
@@ -487,7 +510,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 }
             }
         } catch (UserStoreException e) {
-            LOG.warn("Could not read the invited user's stored claims for Daon verification.", e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_READING_USER_CLAIMS), e);
         }
         return resolved;
     }
@@ -555,7 +578,10 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             }
             return IdentityUtil.getServerURL("/t/" + tenantDomain + portalPath, true, true);
         } catch (Exception e) {
-            LOG.warn("Could not build portal URL for tenant: " + tenantDomain + "; falling back to default.", e);
+            // Deliberately broad: organization resolution throws a checked OrganizationManagementException
+            // while IdentityUtil.getServerURL can throw unchecked IdentityRuntimeException, and neither
+            // should stop the flow when a usable default portal URL exists.
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_BUILDING_PORTAL_URL, tenantDomain), e);
             return IdentityUtil.getServerURL(portalPath, true, true);
         }
     }

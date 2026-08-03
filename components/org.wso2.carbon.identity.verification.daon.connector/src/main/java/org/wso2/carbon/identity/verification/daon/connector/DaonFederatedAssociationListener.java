@@ -19,11 +19,15 @@
 package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.commons.logging.Log;
+import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.flow.execution.engine.Constants;
 import org.wso2.carbon.identity.flow.execution.engine.listener.AbstractFlowExecutionListener;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionStep;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
+import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.DAON_FED_IDP_NAME;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.DAON_FED_SUBJECT;
@@ -35,6 +39,8 @@ import static org.wso2.carbon.identity.verification.daon.connector.constants.Dao
  * {@link DaonFederatedAssociationUtil} for both self sign-up and invited-user registration.
  */
 public class DaonFederatedAssociationListener extends AbstractFlowExecutionListener {
+
+    private static final Log LOG = LogFactory.getLog(DaonFederatedAssociationListener.class);
 
     @Override
     public int getExecutionOrderId() {
@@ -59,11 +65,27 @@ public class DaonFederatedAssociationListener extends AbstractFlowExecutionListe
         }
         String daonSubject = (String) context.getProperty(DAON_FED_SUBJECT);
         String idpName = (String) context.getProperty(DAON_FED_IDP_NAME);
-        if (StringUtils.isBlank(daonSubject) || StringUtils.isBlank(idpName) || context.getFlowUser() == null) {
+        // Neither property set means the flow never went through Daon, which is the normal case for any
+        // other registration flow — nothing to persist and nothing to report.
+        if (StringUtils.isBlank(daonSubject) && StringUtils.isBlank(idpName)) {
+            return true;
+        }
+        // Past this point the flow did verify with Daon, so any missing piece means the enrolment is
+        // silently lost and the user will look "not enrolled" at their next login. Say so.
+        if (StringUtils.isBlank(daonSubject) || StringUtils.isBlank(idpName)) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+                    "the Daon subject or the IDP name is missing from the flow context"));
+            return true;
+        }
+        if (context.getFlowUser() == null) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+                    "the completed flow has no flow user"));
             return true;
         }
         String username = context.getFlowUser().getUsername();
         if (StringUtils.isBlank(username)) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+                    "the flow user has no username"));
             return true;
         }
         User user = DaonFederatedAssociationUtil.buildUser(username, context.getTenantDomain());

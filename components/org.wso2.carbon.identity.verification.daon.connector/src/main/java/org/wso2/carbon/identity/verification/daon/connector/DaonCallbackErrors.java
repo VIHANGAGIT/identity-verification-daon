@@ -19,10 +19,11 @@
 package org.wso2.carbon.identity.verification.daon.connector;
 
 import org.apache.commons.lang.StringUtils;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 
 /**
- * Maps the standard OAuth2/OIDC {@code error} returned by Daon on the authorization callback to a clean,
- * user-facing message. Both the login authenticator and the flow executor use this so error handling stays
+ * Maps the standard OAuth2/OIDC {@code error} returned by Daon on the authorization callback to a coded,
+ * user-facing error. Both the login authenticator and the flow executor use this so error handling stays
  * consistent across flows.
  *
  * <p>Standard OAuth2 codes (e.g. {@code access_denied}) are interpreted generically; known Daon-specific
@@ -53,34 +54,33 @@ final class DaonCallbackErrors {
     }
 
     /**
-     * Resolves a user-facing message for a Daon OAuth2 error callback. The raw {@code error} /
-     * {@code errorDescription} are not surfaced to the end user (they are logged by the caller); this
-     * returns a safe, generic message keyed off the standard error code.
+     * Resolves the Daon error code for an OAuth2 error callback. The raw {@code error} /
+     * {@code errorDescription} are not surfaced to the end user (they are logged by the caller); the
+     * returned entry carries a stable {@code DAON-60xxx} code and a safe, generic user-facing message.
      *
      * @param error            the standard OAuth2 {@code error} code (may be blank).
      * @param errorDescription the OAuth2 {@code error_description}; inspected for Daon reason tokens (e.g.
      *                         {@code CLAIMS_VERIFICATION_MISMATCH}) to tailor the message. Never surfaced
      *                         to the end user verbatim.
-     * @return a user-facing message describing the failure.
+     * @return the catalogue entry describing the failure; never {@code null}.
      */
-    static String resolveUserFacingMessage(String error, String errorDescription) {
+    static ErrorMessage resolveError(String error, String errorDescription) {
 
         String normalizedError = StringUtils.trimToEmpty(error);
         String normalizedDescription = StringUtils.trimToEmpty(errorDescription);
 
         if (ERROR_ACCESS_DENIED.equalsIgnoreCase(normalizedError)) {
-            return "Identity verification was cancelled or not completed. Please try again.";
+            return ErrorMessage.ERROR_VERIFICATION_CANCELLED;
         }
         // The details submitted (e.g. the pre-filled name/date of birth sent as claim value-requests) did
         // not match the identity document. The reason is carried in error_description; key off it directly
         // so the message stays correct regardless of the accompanying error code.
         if (normalizedDescription.toLowerCase().contains(REASON_CLAIMS_VERIFICATION_MISMATCH.toLowerCase())) {
-            return "The details you entered do not match your identity document. " +
-                    "Please check your information and try again.";
+            return ErrorMessage.ERROR_CLAIMS_VERIFICATION_MISMATCH;
         }
         if (ERROR_FAILED_TO_VERIFY_USER.equalsIgnoreCase(normalizedError)) {
-            return "Your identity could not be verified. Please try again or contact support.";
+            return ErrorMessage.ERROR_IDENTITY_VERIFICATION_FAILED;
         }
-        return "Identity verification could not be completed. Please try again or contact support.";
+        return ErrorMessage.ERROR_VERIFICATION_NOT_COMPLETED;
     }
 }
