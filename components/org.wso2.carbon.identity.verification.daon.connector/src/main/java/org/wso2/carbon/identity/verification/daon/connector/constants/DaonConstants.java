@@ -77,6 +77,7 @@ public class DaonConstants {
     public static final String CLAIM_GIVEN_NAME = "given_name";
     public static final String CLAIM_FAMILY_NAME = "family_name";
     public static final String CLAIM_FAMILY_NAME_AND_GIVEN_NAME = "family_name_and_given_name";
+    public static final String CLAIM_BIRTHDATE = "birthdate";
     public static final String CLAIM_DOCUMENT_TYPE = "document_type";
     public static final String CLAIM_DOCUMENT_CLASSIFICATION = "document_classification";
     public static final String CLAIM_DOCUMENT_DATE_OF_EXPIRY = "document_date_of_expiry";
@@ -140,6 +141,27 @@ public class DaonConstants {
     public static final String DAON_ENROL_PD = "daon_enrol_pd";
 
     /**
+     * Adaptive-script runtime parameter asking the login step to <b>enrol</b> the user with Daon instead of
+     * re-verifying them: the enrol process definition is sent in place of the login one, and the resulting
+     * identity is recorded as the user's federated association.
+     *
+     * <p>Set per step from a conditional authentication script:</p>
+     * <pre>
+     * executeStep(3, {
+     *     authenticationOptions: [ { idp: 'Daon TrustX Authenticator' } ],
+     *     authenticatorParams: { federated: { 'Daon TrustX Authenticator': { enrol: 'true' } } }
+     * }, {});
+     * </pre>
+     *
+     * <p><b>The script only asks; the connector decides.</b> A user who already has a Daon enrolment is
+     * refused with {@link DaonErrorConstants.ErrorMessage#ERROR_ALREADY_ENROLLED} however this parameter is
+     * set — see {@code DaonAuthenticator#initiateAuthenticationRequest}. Without that check, anyone holding
+     * the account's first-factor credentials could fail the face verification, be routed here, and bind
+     * their own identity to the account.</p>
+     */
+    public static final String DAON_RUNTIME_PARAM_ENROL = "enrol";
+
+    /**
      * Authenticator configuration property key holding the resource id (UUID) of the referenced Daon
      * OIDC IDP connection. The Daon TrustX Authenticator connection carries no OIDC credentials itself;
      * the client id/secret, authorize/token endpoints, scopes and enrol process definition are resolved
@@ -154,25 +176,45 @@ public class DaonConstants {
     public static final String DAON_SELECTED_PD = "daon_selected_pd";
 
     /**
-     * Property key used to pass the comma-separated list of Daon claim names (from the IDP claim
-     * mappings) through the authenticator properties so {@code getAdditionalQueryParams()} can build
-     * the {@code claims} request parameter dynamically.
+     * Property key carrying the fully built OIDC {@code claims} request parameter through the
+     * authenticator properties, so {@code getAdditionalQueryParams()} only has to read it.
+     *
+     * <p>The parameter is built up-front in the executor's request preparation rather than inside
+     * {@code getAdditionalQueryParams()} (whose signature cannot report a failure) precisely so that a
+     * claims request which cannot be built fails the flow instead of silently dropping the
+     * value-requests Daon is meant to verify the user's known attributes against.</p>
      */
-    public static final String DAON_CLAIM_NAMES = "daon_claim_names";
-
-    /**
-     * Property key used to carry the pre-known values of the mapped claims (as a JSON object keyed by
-     * Daon claim name) through the authenticator properties, so {@code getAdditionalQueryParams()} can
-     * send them as OIDC value-requests in the {@code claims} parameter. Populated for the enrolment
-     * flows from attributes the user already has before Daon is triggered.
-     */
-    public static final String DAON_CLAIM_VALUES = "daon_claim_values";
+    public static final String DAON_CLAIMS_REQUEST = "daon_claims_request";
 
     /**
      * Property key used to carry the resolved {@code login_hint} (Daon {@code preferred_username})
-     * into {@code getAdditionalQueryParams()} for the password recovery face-auth flow.
+     * into {@code getAdditionalQueryParams()} for the password recovery face-auth flow. It doubles as
+     * the <b>expected</b> identity the returned ID token is checked against — see
+     * {@code DaonJwtUtil.isExpectedSubject}.
      */
     public static final String DAON_LOGIN_HINT = "daon_login_hint";
+
+    /**
+     * Authentication-context property holding the Daon subject the login step expects Daon to verify —
+     * the enrolled user's {@code preferred_username} from their federated association, resolved when the
+     * authorize request is built and read back when the callback is processed.
+     *
+     * <p>It is stashed on the context (rather than resolved again at the callback) so the identity the
+     * response is bound to is the very one the {@code login_hint} was built from.</p>
+     */
+    public static final String DAON_EXPECTED_SUBJECT = "daon_expected_subject";
+
+    /**
+     * Authentication-context property holding the domain-qualified username of the local user an enrolment
+     * request is enrolling (see {@link #DAON_RUNTIME_PARAM_ENROL}). A non-blank value marks the in-flight
+     * request as an enrolment, so the callback records a new federated association instead of asserting a
+     * match against an existing one.
+     *
+     * <p>Stashed when the authorize request is built — where the identified local user is unambiguously the
+     * subject of the preceding step — rather than resolved again at the callback, by which point the
+     * context's last authenticated user is the federated Daon identity.</p>
+     */
+    public static final String DAON_ENROLLING_USER = "daon_enrolling_user";
 
     /**
      * Flow-context property keys carrying the Daon federated association (IDP name + Daon subject /
@@ -199,14 +241,6 @@ public class DaonConstants {
      * and the retry page, so {@link ErrorMessage#ERROR_USER_NOT_ENROLLED} must keep its code.</p>
      */
     public static final String USER_NOT_ENROLLED_ERROR_CODE = ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode();
-
-    /**
-     * i18n keys passed to the authentication retry page (as status / status message) when a not-enrolled
-     * user reaches the Daon login step. The retry page resolves these from its resource bundle, so the
-     * displayed text stays localizable and no raw sentence is hard-coded in the authenticator.
-     */
-    public static final String NOT_ENROLLED_RETRY_STATUS = "daon.user.not.enrolled.message";
-    public static final String NOT_ENROLLED_RETRY_STATUS_MSG = "daon.user.not.enrolled.description";
 
     // Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
     public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";

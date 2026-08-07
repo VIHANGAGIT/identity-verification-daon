@@ -135,6 +135,27 @@
                     <suiteXmlFiles>
                         <suiteXmlFile>src/test/resources/testng.xml</suiteXmlFile>
                     </suiteXmlFiles>
+                    <!--
+                    The identity framework drags in two incompatible pax-logging-api builds, whose JCL
+                    facade and PaxLogger interface then come from different versions - any code under test
+                    that logs dies with a NoSuchMethodError. In the server pax-logging is supplied by the
+                    OSGi runtime, so drop it from the test classpath and let commons-logging serve
+                    LogFactory on its own.
+                    -->
+                    <classpathDependencyExcludes>
+                        <classpathDependencyExclude>
+                            org.ops4j.pax.logging:pax-logging-api
+                        </classpathDependencyExclude>
+                        <classpathDependencyExclude>
+                            org.ops4j.pax.logging:pax-logging-log4j2
+                        </classpathDependencyExclude>
+                        <classpathDependencyExclude>
+                            org.wso2.org.ops4j.pax.logging:pax-logging-api
+                        </classpathDependencyExclude>
+                        <classpathDependencyExclude>
+                            org.wso2.org.ops4j.pax.logging:pax-logging-log4j2
+                        </classpathDependencyExclude>
+                    </classpathDependencyExcludes>
                 </configuration>
             </plugin>
             <plugin>
@@ -149,7 +170,8 @@
                         <_dsannotations-options>version;minimum=1.2.0;maximum=1.2.0,nocapabilities,norequirements</_dsannotations-options>
                         <_removeheaders>Require-Capability</_removeheaders>
                         <Private-Package>
-                            org.wso2.carbon.identity.verification.daon.connector.internal
+                            org.wso2.carbon.identity.verification.daon.connector.internal,
+                            org.wso2.carbon.identity.verification.daon.connector.util
                         </Private-Package>
                         <Import-Package>
                             org.apache.commons.lang; version="${commons-lang.wso2.osgi.version.range}",
@@ -189,6 +211,7 @@
                         </Import-Package>
                         <Export-Package>
                             !org.wso2.carbon.identity.verification.daon.connector.internal,
+                            !org.wso2.carbon.identity.verification.daon.connector.util,
                             org.wso2.carbon.identity.verification.daon.connector.*; version="${project.version}"
                         </Export-Package>
                     </instructions>

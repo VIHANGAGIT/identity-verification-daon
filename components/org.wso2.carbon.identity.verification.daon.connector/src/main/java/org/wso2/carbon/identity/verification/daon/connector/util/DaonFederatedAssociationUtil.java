@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.connector;
+package org.wso2.carbon.identity.verification.daon.connector.util;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
@@ -38,7 +38,7 @@ import org.wso2.carbon.user.core.util.UserCoreUtil;
  * <p>The presence of an association with the Daon IDP means the user is Daon-verified; the
  * association's federated user id holds the Daon {@code preferred_username} used as {@code login_hint}.</p>
  */
-final class DaonFederatedAssociationUtil {
+public final class DaonFederatedAssociationUtil {
 
     private static final Log LOG = LogFactory.getLog(DaonFederatedAssociationUtil.class);
 
@@ -48,7 +48,7 @@ final class DaonFederatedAssociationUtil {
     /**
      * Builds an application-common {@link User} from a (possibly domain-qualified) username and tenant.
      */
-    static User buildUser(String username, String tenantDomain) {
+    public static User buildUser(String username, String tenantDomain) {
 
         User user = new User();
         user.setUserName(UserCoreUtil.removeDomainFromName(username));
@@ -62,7 +62,7 @@ final class DaonFederatedAssociationUtil {
      * Daon IDP, or {@code null} if the user has no association with that IDP (i.e. not yet verified).
      * A non-null (possibly empty) return means the user is Daon-verified.
      */
-    static String getAssociatedDaonSubject(User user, String idpName) {
+    public static String getAssociatedDaonSubject(User user, String idpName) {
 
         if (user == null || StringUtils.isBlank(idpName)) {
             LOG.debug("Null user or blank IDP name; cannot resolve the Daon verification state.");
@@ -99,27 +99,66 @@ final class DaonFederatedAssociationUtil {
     }
 
     /**
-     * Creates a federated association between the local user and the Daon IDP. Idempotent from the
-     * caller's perspective: an "already associated" outcome is logged and swallowed.
+     * Returns the username of the local user already associated with the given Daon subject on the given
+     * Daon IDP, or {@code null} if no local user has claimed that Daon identity (or the lookup could not be
+     * performed).
+     *
+     * <p>Used before an enrolment records an association, to keep one Daon identity from backing two
+     * accounts. A {@code null} return does not by itself prove the identity is unclaimed — it also covers a
+     * failed lookup — so a caller relying on exclusivity must still treat a subsequent association failure
+     * (the store enforces uniqueness) as the authoritative answer.</p>
      */
-    static void createAssociation(User user, String idpName, String daonSubject) {
+    public static String getLocalUserForDaonSubject(String tenantDomain, String idpName, String daonSubject) {
+
+        if (StringUtils.isBlank(tenantDomain) || StringUtils.isBlank(idpName)
+                || StringUtils.isBlank(daonSubject)) {
+            LOG.debug("Blank tenant domain, IDP name or Daon subject; cannot resolve the associated user.");
+            return null;
+        }
+        FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
+        if (manager == null) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_FED_ASSOCIATION_MANAGER_UNAVAILABLE,
+                    "cannot resolve the local user holding the Daon identity"));
+            return null;
+        }
+        try {
+            return manager.getUserForFederatedAssociation(tenantDomain, idpName, daonSubject);
+        } catch (FederatedAssociationManagerException e) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_FED_ASSOCIATION, idpName), e);
+            return null;
+        }
+    }
+
+    /**
+     * Creates a federated association between the local user and the Daon IDP.
+     *
+     * <p>Never throws: a failure — most commonly that the association already exists, which is the normal
+     * outcome of a re-verification — is logged with its code. The return value tells a caller that needs
+     * the association to exist (an enrolment) whether it was actually written, while callers for which an
+     * existing association is a fine outcome can ignore it.</p>
+     *
+     * @return {@code true} if the association was created.
+     */
+    public static boolean createAssociation(User user, String idpName, String daonSubject) {
 
         if (user == null || StringUtils.isBlank(idpName) || StringUtils.isBlank(daonSubject)) {
             LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
                     "the user, the IDP name or the Daon subject is missing"));
-            return;
+            return false;
         }
         FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
         if (manager == null) {
             LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_FED_ASSOCIATION_MANAGER_UNAVAILABLE,
                     "the Daon verification state was not persisted"));
-            return;
+            return false;
         }
         try {
             manager.createFederatedAssociation(user, idpName, daonSubject);
+            return true;
         } catch (FederatedAssociationManagerException e) {
             // Typically already associated (re-verification) — safe to ignore.
             LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_CREATING_FED_ASSOCIATION, idpName), e);
+            return false;
         }
     }
 }

@@ -89,6 +89,48 @@ public class DaonErrorConstants {
                 "Invalid Daon verification flow status provided.",
                 "The verification flow status '%s' is not a recognised Daon flow status."),
 
+        /**
+         * The login step's counterpart to {@link #ERROR_RECOVERY_IDENTITY_MISMATCH}: Daon verified an
+         * identity other than the one enrolled for the account being logged in to (or the enrolled
+         * identity could not be resolved at the callback, in which case the binding cannot be proven).
+         */
+        ERROR_LOGIN_IDENTITY_MISMATCH("60008",
+                "Identity verification failed: the verified identity does not match the account you are "
+                        + "signing in to.",
+                "The identity Daon verified does not match the Daon subject recorded for the "
+                        + "authenticating user. The compared identifiers are logged at debug level, so "
+                        + "this line carries no personal identifier."),
+
+        /**
+         * An enrolment was requested for a user who already has a Daon enrolment.
+         *
+         * <p>The check this reports is the one that keeps enrolment at login from becoming an account
+         * takeover. Re-verification and enrolment are mutually exclusive by account state: a user with an
+         * enrolment must satisfy it, and can never be routed around it into enrolling a second identity.
+         * Someone holding the account's first-factor credentials but not its enrolled identity would
+         * otherwise only have to fail the face verification to bind their own.</p>
+         *
+         * <p>Enforced in the authenticator, so no adaptive script can weaken it — a script asking to enrol
+         * an already-enrolled user fails the step here.</p>
+         */
+        ERROR_ALREADY_ENROLLED("60009",
+                "Your account is already enrolled for identity verification. Please complete the "
+                        + "verification, or contact your administrator if you cannot.",
+                "An enrolment was requested for a user who already has a Daon federated association on "
+                        + "IDP: %s. Refusing to enrol a second identity for the account."),
+
+        /**
+         * An enrolment verified an identity that is already enrolled for a different local account.
+         *
+         * <p>Fails rather than logging the user in unenrolled: one Daon identity backing two accounts would
+         * let the same person satisfy identity proofing for either of them.</p>
+         */
+        ERROR_DAON_IDENTITY_ALREADY_ENROLLED("60010",
+                "The verified identity is already enrolled for another account. "
+                        + "Please contact your administrator.",
+                "The Daon subject returned by the enrolment is already associated with a different local "
+                        + "user on IDP: %s"),
+
         // Server errors - DAON-65xxx.
 
         ERROR_OIDC_CONFIG_NOT_RESOLVED("65001",
@@ -115,7 +157,7 @@ public class DaonErrorConstants {
 
         ERROR_NO_SUBJECT_IDENTITY_IN_ID_TOKEN("65006",
                 "No subject identity found in the Daon ID token.",
-                "Neither 'preferred_username' nor 'sub' is present in the Daon ID token returned for "
+                "The 'preferred_username' claim is not present in the Daon ID token returned for "
                         + "password recovery."),
 
         ERROR_IDP_MANAGER_UNAVAILABLE("65007",
@@ -158,10 +200,6 @@ public class DaonErrorConstants {
                 "Error reading the invited user's stored claims for Daon verification; the "
                         + "corresponding claim value-requests will not be sent."),
 
-        ERROR_PARSING_CLAIM_VALUES("65016",
-                "Could not parse the pre-known Daon claim values.",
-                "The %s property is not valid JSON; sending claim requests without values."),
-
         ERROR_BUILDING_CLAIMS_REQUEST("65017",
                 "Could not build the Daon claims request.",
                 "Error building the OIDC claims request parameter for the Daon authorization request."),
@@ -170,14 +208,47 @@ public class DaonErrorConstants {
                 "Could not build the flow portal URL.",
                 "Error building the portal URL for tenant: %s; falling back to the default portal URL."),
 
-        ERROR_REDIRECTING_TO_RETRY_PAGE("65019",
-                "Could not redirect to the login retry page.",
-                "Error redirecting the not-enrolled user to the Daon login retry page."),
-
         ERROR_ACTIVATING_BUNDLE("65020",
                 "Could not activate the Daon connector bundle.",
                 "Error registering the Daon connector OSGi services; the bundle is active but one or "
-                        + "more services may be unregistered.");
+                        + "more services may be unregistered."),
+
+        /**
+         * Daon returned a token without the verified-claims block, so nothing in the response evidences a
+         * completed verification. The enrolment flows fail rather than continue: an empty verification
+         * result must not be mistaken for a successful one.
+         */
+        ERROR_VERIFIED_CLAIMS_NOT_FOUND("65021",
+                "Daon did not return any verified identity claims.",
+                "The Daon ID token for the %s flow carries no 'verifiedClaims' (or no nested 'claims') "
+                        + "object, so the verification cannot be treated as successful."),
+
+        ERROR_TRUST_FRAMEWORK_MISMATCH("65022",
+                "Daon verified the identity under an unexpected trust framework.",
+                "The Daon ID token reports trust_framework '%s' but '%s' was requested; the verification "
+                        + "does not meet the expected assurance."),
+
+        ERROR_NO_VERIFIABLE_CLAIM_VALUES("65023",
+                "There are no identity attributes to verify against the user's identity document. "
+                        + "Check the Daon connection's attribute mappings.",
+                "The %s flow sends the user's known attributes to Daon as OIDC claim value-requests, but "
+                        + "none of the mapped attributes with a value is document-verifiable, so Daon "
+                        + "would have nothing to validate the profile against."),
+
+        ERROR_ENROL_PD_NOT_CONFIGURED("65024",
+                "No Daon enrol process definition is configured.",
+                "An enrolment was requested at the login step, but no enrol process definition could be "
+                        + "resolved from the referenced Daon Identity Verifier connection."),
+
+        ERROR_ENROLMENT_IDENTITY_NOT_RETURNED("65025",
+                "Daon did not return an identity to enrol.",
+                "The 'preferred_username' claim is not present in the Daon ID token returned for the "
+                        + "enrolment, so there is no Daon subject to record for the user."),
+
+        ERROR_READING_USER_CLAIMS_AT_LOGIN("65026",
+                "Could not read the user's stored claims.",
+                "Error reading the stored claims of the user being enrolled at the login step; the "
+                        + "corresponding claim value-requests will not be sent to Daon.");
 
         private final String code;
         private final String message;

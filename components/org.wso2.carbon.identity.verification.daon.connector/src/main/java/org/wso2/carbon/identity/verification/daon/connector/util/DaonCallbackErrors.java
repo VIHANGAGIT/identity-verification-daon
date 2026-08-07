@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.connector;
+package org.wso2.carbon.identity.verification.daon.connector.util;
 
 import org.apache.commons.lang.StringUtils;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
@@ -32,7 +32,7 @@ import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorC
  * verification-failure reasons (liveness, face-match, document) can be mapped here in one place as they
  * surface in those logs.</p>
  */
-final class DaonCallbackErrors {
+public final class DaonCallbackErrors {
 
     /** Standard OAuth2 error code emitted when the user cancels or declines the verification. */
     private static final String ERROR_ACCESS_DENIED = "access_denied";
@@ -64,7 +64,7 @@ final class DaonCallbackErrors {
      *                         to the end user verbatim.
      * @return the catalogue entry describing the failure; never {@code null}.
      */
-    static ErrorMessage resolveError(String error, String errorDescription) {
+    public static ErrorMessage resolveError(String error, String errorDescription) {
 
         String normalizedError = StringUtils.trimToEmpty(error);
         String normalizedDescription = StringUtils.trimToEmpty(errorDescription);

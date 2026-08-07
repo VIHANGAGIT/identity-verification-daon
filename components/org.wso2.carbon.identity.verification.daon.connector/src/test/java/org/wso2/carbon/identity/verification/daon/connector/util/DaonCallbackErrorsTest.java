@@ -16,7 +16,7 @@
  * under the License.
  */
 
-package org.wso2.carbon.identity.verification.daon.connector;
+package org.wso2.carbon.identity.verification.daon.connector.util;
 
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
