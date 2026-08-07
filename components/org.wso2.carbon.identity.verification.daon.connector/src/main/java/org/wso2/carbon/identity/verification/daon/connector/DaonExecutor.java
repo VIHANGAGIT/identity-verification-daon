@@ -33,7 +33,6 @@ import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.flow.execution.engine.Constants;
 import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineException;
-import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorConstants;
 import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorMetadata;
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
@@ -136,7 +135,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 .displayName(DaonConstants.AUTHENTICATOR_FRIENDLY_NAME + " Verification")
                 .description("Verifies the user's identity with Daon TrustX before the flow continues.")
                 .icon("assets/images/icons/daon.svg")
-                .tags(Collections.singletonList(FlowExecutorConstants.Tags.RECOVERY_FACTOR))
+                .tags(Collections.singletonList(Constants.ExecutorTags.RECOVERY_FACTOR))
                 .associatedAuthenticator(DaonConstants.AUTHENTICATOR_NAME)
                 .connectionRequired(true)
                 .build();
