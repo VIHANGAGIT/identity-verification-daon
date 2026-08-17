@@ -149,12 +149,17 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             // An adaptive script addresses these per connection name, so a name that does not match this
             // connection delivers nothing and the step silently behaves as an unscripted one. An empty map
             // here when a script set parameters is that mismatch.
-            LOG.debug("Daon login step. Enrolled: " + StringUtils.isNotBlank(daonSubject)
+            LOG.debug("Daon login step. Enrolled: " + (daonSubject != null)
+                    + ", usable login_hint: " + StringUtils.isNotBlank(daonSubject)
                     + ", runtime parameters from the adaptive script: " + runtimeParams.keySet());
         }
 
         if (Boolean.parseBoolean(runtimeParams.get(DaonConstants.DAON_RUNTIME_PARAM_ENROL))) {
-            if (StringUtils.isNotBlank(daonSubject)) {
+            // Any non-null value means an association exists, blank included: getAssociatedDaonSubject
+            // returns the empty string for an association whose federated user id is unset. Testing for
+            // "not blank" here would let such an account past this guard and enrol a second identity for
+            // it, which is exactly what the guard exists to prevent — so the test is "not null".
+            if (daonSubject != null) {
                 // SECURITY: never enrol an account that already has an enrolment. Re-verification and
                 // enrolment are mutually exclusive by account state, decided here from the association
                 // store and not by the script that asked. Without this, someone holding the account's
@@ -251,9 +256,11 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             LOG.debug("Enrolling a user with no Daon enrolment at the login step, using the enrol process "
                     + "definition: " + enrolProcessDefinition);
         }
-        // Marks the in-flight request as an enrolment, and carries the local user the callback binds the
-        // verified identity to.
+        // Marks the in-flight request as an enrolment, and carries the local user (and the tenant it lives
+        // in) that the callback binds the verified identity to.
         context.setProperty(DaonConstants.DAON_ENROLLING_USER, qualifiedUsername);
+        context.setProperty(DaonConstants.DAON_ENROLLING_USER_TENANT,
+                resolveUserTenantDomain(authenticatedUser, context));
         addDaonQueryParams(props, enrolProcessDefinition, null, claimsRequest);
         super.initiateAuthenticationRequest(request, response, context);
     }
@@ -292,15 +299,27 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throw failCallback(context, ErrorMessage.ERROR_OIDC_CONFIG_NOT_RESOLVED);
         }
         super.processAuthenticationResponse(request, response, context);
+        // Consume the in-flight request's markers here, before either branch runs. They describe *this*
+        // authorize request, and the authentication context outlives it: a second Daon step in the same
+        // sequence (a script that enrols and then re-verifies, or a step retry) would otherwise read the
+        // previous request's marker, take the enrolment branch again, and skip the identity binding check
+        // below — failing a legitimate login with DAON-60010 because the subject is already enrolled to
+        // the very user being logged in.
         String enrollingUser = (String) context.getProperty(DaonConstants.DAON_ENROLLING_USER);
+        String enrollingUserTenant = (String) context.getProperty(DaonConstants.DAON_ENROLLING_USER_TENANT);
+        String expectedSubject = (String) context.getProperty(DaonConstants.DAON_EXPECTED_SUBJECT);
+        context.removeProperty(DaonConstants.DAON_ENROLLING_USER);
+        context.removeProperty(DaonConstants.DAON_ENROLLING_USER_TENANT);
+        context.removeProperty(DaonConstants.DAON_EXPECTED_SUBJECT);
+
         if (StringUtils.isNotBlank(enrollingUser)) {
             // An enrolment: there is no recorded identity to match against — this callback is what creates
             // it. Daon has already validated the document against the user's profile, via the claim
             // value-requests the authorize request carried.
-            persistEnrolment(context, enrollingUser);
+            persistEnrolment(context, enrollingUser, enrollingUserTenant);
             return;
         }
-        assertVerifiedIdentityMatchesUser(context);
+        assertVerifiedIdentityMatchesUser(context, expectedSubject);
     }
 
     /**
@@ -312,9 +331,20 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * identity returned, the IDP name unresolvable, the identity already enrolled for another account, or
      * the write itself failing. A login that silently skipped the enrolment would leave the account looking
      * not-enrolled at the next attempt, with nothing to explain why.</p>
+     *
+     * @param qualifiedUsername the local user to bind the verified identity to, stashed when the request
+     *                          was built.
+     * @param userTenantDomain  the tenant that user lives in, stashed alongside it. The association is
+     *                          keyed on (username, userstore domain, tenant), so this must be the same
+     *                          tenant {@link #resolveDaonSubject} reads back with — the user's, which in a
+     *                          B2B/organization login is not the context's (the service provider's).
      */
-    private void persistEnrolment(AuthenticationContext context, String qualifiedUsername)
+    private void persistEnrolment(AuthenticationContext context, String qualifiedUsername,
+                                  String userTenantDomain)
             throws AuthenticationFailedException {
+
+        String tenantDomain = StringUtils.isNotBlank(userTenantDomain)
+                ? userTenantDomain : context.getTenantDomain();
 
         // preferred_username is the identifier Daon issues for the enrolled person, and the value both the
         // enrolment flows record and the login step later compares against, so it is the one recorded here.
@@ -332,14 +362,14 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         // The enrolling user had no association when the request was built, so a Daon subject that already
         // resolves to a local user resolves to a different one.
         String existingUser = DaonFederatedAssociationUtil.getLocalUserForDaonSubject(
-                context.getTenantDomain(), daonIdpName, daonSubject);
+                tenantDomain, daonIdpName, daonSubject);
         if (StringUtils.isNotBlank(existingUser)) {
             LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_DAON_IDENTITY_ALREADY_ENROLLED,
                     daonIdpName));
             throw failCallback(context, ErrorMessage.ERROR_DAON_IDENTITY_ALREADY_ENROLLED);
         }
         User associationUser =
-                DaonFederatedAssociationUtil.buildUser(qualifiedUsername, context.getTenantDomain());
+                DaonFederatedAssociationUtil.buildUser(qualifiedUsername, tenantDomain);
         if (!DaonFederatedAssociationUtil.createAssociation(associationUser, daonIdpName, daonSubject)) {
             // The util has already logged the specific cause with its own code. The store enforces
             // uniqueness on (IDP, Daon subject), so this also catches an identity claimed by another
@@ -364,10 +394,9 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * the ID token's identity claims available. Throwing here fails the step, so the sequence never
      * completes with an unbound verification.</p>
      */
-    private void assertVerifiedIdentityMatchesUser(AuthenticationContext context)
+    private void assertVerifiedIdentityMatchesUser(AuthenticationContext context, String expectedSubject)
             throws AuthenticationFailedException {
 
-        String expectedSubject = (String) context.getProperty(DaonConstants.DAON_EXPECTED_SUBJECT);
         // Compare the preferred_username claim itself rather than the framework's subject identifier: the
         // two are normally the same value (see getAuthenticateUser), but a connection configured with a
         // UserIdClaimUri makes the parent resolve the subject identifier from that claim instead, while the
@@ -699,14 +728,33 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             LOG.debug("Could not resolve the Daon IDP name; cannot resolve the Daon subject.");
             return null;
         }
-        String username = UserCoreUtil.removeDomainFromName(authenticatedUser.getUserName());
-        String userStoreDomain = authenticatedUser.getUserStoreDomain();
-        if (StringUtils.isNotBlank(userStoreDomain)) {
-            username = userStoreDomain + "/" + username;
+        String username = resolveQualifiedUsername(authenticatedUser);
+        if (StringUtils.isBlank(username)) {
+            LOG.debug("The last authenticated user carries no username; cannot resolve the Daon subject.");
+            return null;
         }
-        User associationUser =
-                DaonFederatedAssociationUtil.buildUser(username, authenticatedUser.getTenantDomain());
+        User associationUser = DaonFederatedAssociationUtil.buildUser(username,
+                resolveUserTenantDomain(authenticatedUser, context));
         return DaonFederatedAssociationUtil.getAssociatedDaonSubject(associationUser, daonIdpName);
+    }
+
+    /**
+     * The tenant domain the identified local user's federated association is keyed on.
+     *
+     * <p>The user's own tenant, not the authentication context's. The two are the same for an ordinary
+     * login, but in a B2B/organization login the context carries the service provider's tenant while the
+     * user lives in another — and every read and write of the association has to agree on one of them, or
+     * an enrolment recorded under one tenant is invisible to the lookup under the other and the account
+     * looks permanently not-enrolled. The context's tenant is only a fallback for a user that carries
+     * none.</p>
+     */
+    private String resolveUserTenantDomain(AuthenticatedUser authenticatedUser,
+                                           AuthenticationContext context) {
+
+        if (authenticatedUser != null && StringUtils.isNotBlank(authenticatedUser.getTenantDomain())) {
+            return authenticatedUser.getTenantDomain();
+        }
+        return context.getTenantDomain();
     }
 
     /**

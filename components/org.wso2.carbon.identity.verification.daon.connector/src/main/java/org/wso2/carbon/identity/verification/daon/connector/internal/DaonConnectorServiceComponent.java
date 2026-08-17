@@ -41,7 +41,7 @@ import org.wso2.carbon.idp.mgt.IdpManager;
 import org.wso2.carbon.user.core.service.RealmService;
 
 /**
- * OSGi service component for the Daon TrustX connector: registers the login authenticator, the flow
+ * OSGi service component for the Daon TrustX connector. Registers the login authenticator, the flow
  * executor and the federated-association listener, and holds the service references they need.
  */
 @Component(

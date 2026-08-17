@@ -17,7 +17,7 @@ pair. It ships **two connection templates**, both of the same `DaonAuthenticator
 The flows:
 
 - **Self-registration** — provision a new user's profile from Daon-verified claims (first-time enrolment).
-- **Invited-user registration** — validate a pre-populated profile against Daon-verified values (lock on mismatch).
+- **Invited-user registration** — have Daon validate the pre-populated profile against the identity document (step fails on mismatch).
 - **Login verification** — as a login step, re-verify an already-enrolled user. A user not yet enrolled
   with Daon fails with an error (enrolment happens via a registration flow, not at login).
 - **Password-recovery verification** — face / push notification based re-verification of an already-enrolled user.
@@ -166,7 +166,7 @@ claims (these drive verification):
 
 Add mappings for any additional claims your Daon tenant returns. When Daon returns a combined
 `family_name_and_given_name` field instead of split names, the executor splits it on `^`
-(`<given>^<family>`).
+(`<family>^<given>`, the ICAO 9303 MRZ order: surname first).
 
 ### Step 4 — Add Daon to your flows
 
@@ -179,10 +179,13 @@ connection to login/recovery:
 - **Invited-user registration**: add the **Daon Identity Verifier** connection's executor node
   to the invited-user flow **before the set-password step**. When the invited user clicks the magic link
   / enters the OTP, they are redirected to Daon to verify the claims the admin defined. Every mapped
-  claim the admin set on the user is compared against the Daon-verified values (read from the flow user,
-  falling back to the user store by user id). **Only a successful match advances to set-password.** A
-  mismatch re-prompts the Daon step; after `MAX_VERIFICATION_ATTEMPTS` (default 3, session-scoped)
-  failures the account is locked. On success a federated association is recorded (⇒ verified). Sends the
+  claim the admin set on the user (read from the flow user, falling back to the user store by user id) is
+  sent to Daon as an OIDC claim **value-request**, so *Daon* compares them against the identity document.
+  A mismatch comes back as a `CLAIMS_VERIFICATION_MISMATCH` error on the callback and the step fails with
+  `DAON-60003`; the connector does no client-side re-validation of the returned claims. **Only a
+  successful verification advances to set-password.** If none of the mapped-and-populated attributes is
+  document-verifiable, the step fails with `DAON-65023` rather than accepting a verification that proves
+  nothing about the profile. On success a federated association is recorded (⇒ verified). Sends the
   **enrol PD**.
 - **Login**: add a **Daon TrustX Authenticator** (login) connection to an application's Login Flow as a
   step **after** the user is identified (e.g. after username/password). The user must already be enrolled

@@ -159,8 +159,6 @@ public class DaonExceptionMgt {
 
     /**
      * Builds an {@link AuthenticationFailedException} carrying the error code and the user-facing message.
-     * The diagnostic description is deliberately not used here — it can name internal configuration — so
-     * log it separately with {@link #errorLog(ErrorMessage, Object...)} where the detail is needed.
      */
     public static AuthenticationFailedException handleAuthFailedException(ErrorMessage error) {
 

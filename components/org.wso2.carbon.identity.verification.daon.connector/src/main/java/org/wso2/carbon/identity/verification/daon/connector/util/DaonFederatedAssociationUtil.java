@@ -59,8 +59,21 @@ public final class DaonFederatedAssociationUtil {
 
     /**
      * Returns the Daon subject ({@code preferred_username}) from the user's association with the given
-     * Daon IDP, or {@code null} if the user has no association with that IDP (i.e. not yet verified).
-     * A non-null (possibly empty) return means the user is Daon-verified.
+     * Daon IDP.
+     *
+     * <p><b>Null and empty mean different things and callers must not conflate them:</b></p>
+     * <ul>
+     *   <li>{@code null} — no association with that IDP could be found (not enrolled), or the lookup could
+     *       not be performed at all. Nothing proves the user is enrolled.</li>
+     *   <li>the <b>empty string</b> — an association exists but carries no federated user id. The user
+     *       <em>is</em> enrolled, but there is no usable {@code login_hint} to re-verify against.</li>
+     *   <li>a non-blank value — enrolled, and this is the Daon subject to hint at and bind the response
+     *       to.</li>
+     * </ul>
+     *
+     * <p>So "is this user enrolled?" is a {@code != null} test, and "do I have a usable subject?" is a
+     * not-blank test. Testing not-blank for the former would let an account with an empty association past
+     * an already-enrolled guard and enrol a second identity for it.</p>
      */
     public static String getAssociatedDaonSubject(User user, String idpName) {
 

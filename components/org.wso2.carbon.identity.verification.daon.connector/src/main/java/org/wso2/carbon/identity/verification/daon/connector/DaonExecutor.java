@@ -252,11 +252,14 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 enriched.put(DAON_CLAIMS_REQUEST, buildClaimsRequest(claimMappings, prefilledValues));
             }
         }
-        // The enrolment flows (registration, invited-user) run on a self-contained Identity Verifier
-        // connection and send its enrol process definition; password recovery runs on a login connection
-        // and sends its login process definition (re-verification). Both are read from the connection's
-        // own props and sent to Daon as acr_values.
-        String processDefinition = recovery ? props.get(DAON_LOGIN_PD) : props.get(DAON_ENROL_PD);
+        // The enrolment flows (registration, invited-user) send the enrol process definition; password
+        // recovery sends the login one (re-verification). Both are read from the *effective* properties,
+        // not the connection's own: the enrol PD is configured on the Daon Identity Verifier connection, so
+        // for a referencing connection it only exists on `enriched` (buildEffectiveProperties layers it in
+        // from the referenced IDP). Reading it from `props` would silently drop acr_values there and let
+        // Daon run its default process definition. The login PD belongs to the login connection and is
+        // deliberately not a referenced key, so for it the two maps hold the same value.
+        String processDefinition = recovery ? enriched.get(DAON_LOGIN_PD) : enriched.get(DAON_ENROL_PD);
         if (StringUtils.isNotBlank(processDefinition)) {
             enriched.put(DAON_SELECTED_PD, processDefinition);
         }
@@ -494,8 +497,12 @@ public class DaonExecutor extends OpenIDConnectExecutor {
      * Ensures givenname/lastname are populated. Split {@code given_name}/{@code family_name} claims take
      * precedence; otherwise Daon's combined {@code family_name_and_given_name} is split on {@code ^}.
      *
-     * <p><b>Assumption:</b> the combined field is ordered {@code <given names>^<family name>}. Confirm
-     * against your Daon tenant; swap the two assignments below if it emits the opposite order.</p>
+     * <p>The combined field is ordered {@code <family name>^<given names>}, as both its own claim name and
+     * the ICAO 9303 machine-readable-zone name field it derives from say: the primary identifier (surname)
+     * comes first, then the secondary identifier (given names). Getting this backwards silently swaps the
+     * first and last name of every self-registering user whose document carries only the combined field,
+     * so if a Daon tenant is ever seen emitting the opposite order, swap the two assignments below rather
+     * than leaving both orders "supported".</p>
      */
     private void populateNameClaims(JSONObject daonClaims, Map<String, Object> profileClaims) {
 
@@ -512,8 +519,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         }
         String[] parts = combined.split(
                 java.util.regex.Pattern.quote(DaonConstants.DAON_FIELD_SEPARATOR), 2);
-        String givenName = parts[0].trim();
-        String familyName = parts.length > 1 ? parts[1].trim() : null;
+        String familyName = parts[0].trim();
+        String givenName = parts.length > 1 ? parts[1].trim() : null;
         if (!hasGiven && StringUtils.isNotBlank(givenName)) {
             profileClaims.put(WSO2_GIVENNAME_CLAIM_URI, givenName);
         }

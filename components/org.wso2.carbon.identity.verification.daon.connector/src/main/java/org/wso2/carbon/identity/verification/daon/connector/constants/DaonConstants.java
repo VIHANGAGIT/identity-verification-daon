@@ -36,10 +36,7 @@ public class DaonConstants {
     public static final String DAON = "DAON";
 
     /*
-     * The standard OIDC request/response parameters (client id, endpoints, scope, response type, grant
-     * type, code, state, redirect URI) are not defined here: the authenticator and the executor extend
-     * OpenIDConnectAuthenticator / OpenIDConnectExecutor, which own the protocol and read those keys via
-     * OIDCAuthenticatorConstants. Only the Daon-specific parameters below are needed.
+     * Daon-specific parameters.
      */
 
     /** OIDC login_hint query parameter used to pre-identify the user on the Daon authorization endpoint. */
@@ -49,10 +46,7 @@ public class DaonConstants {
     public static final String ACR_VALUES_PARAM = "acr_values";
 
     /**
-     * Standard OAuth2/OIDC error parameter returned on the callback when the user cancels/declines
-     * verification or Daon fails (in place of {@code code}). The error code itself is read via
-     * {@code OIDCAuthenticatorConstants.OAUTH2_ERROR}; there is no stock constant for the human-readable
-     * {@code error_description}, so it is defined here.
+     * Standard OAuth2/OIDC error parameter returned on the callback.
      */
     public static final String OAUTH2_ERROR_DESCRIPTION = "error_description";
 
@@ -62,7 +56,7 @@ public class DaonConstants {
     public static final String CLAIMS_PARAM = "claims";
     /**
      * OIDC individual-claim-request member used to request that a claim be returned with (verified
-     * against) a specific value, e.g. {@code "given_name": {"value": "JOHN"}}.
+     * against) a specific value.
      */
     public static final String CLAIM_VALUE_MEMBER = "value";
     public static final String VERIFIED_CLAIMS = "verified_claims";
@@ -105,16 +99,6 @@ public class DaonConstants {
      * face auth.
      */
     public static final String JWT_PREFERRED_USERNAME_CLAIM = "preferred_username";
-    public static final String PREFERRED_USERNAME_CLAIM_URI = "http://wso2.org/daon/claims/preferred_username";
-
-    /**
-     * Metadata keys for storing Daon verification related details per claim.
-     */
-    public static final String DAON_STATE = "daon_state";
-    public static final String DAON_FLOW_STATUS = "daon_flow_status";
-    public static final String DAON_COMPLETED_AT = "daon_completed_at";
-    public static final String DAON_VERIFICATION_STATUS = "daon_verification_status";
-    public static final String DAON_AUTHORIZATION_URL = "daon_authorization_url";
 
     /**
      * Name of the federated authenticator handling the Daon login (re-verification) step, and the
@@ -124,19 +108,12 @@ public class DaonConstants {
     public static final String AUTHENTICATOR_FRIENDLY_NAME = "Daon TrustX";
 
     /**
-     * Authenticator configuration property key for the Daon <b>login</b> process definition (PD),
-     * configured on the Daon TrustX Authenticator connection. It drives the login (re-verification)
-     * flow and the password-recovery flow, and is sent to Daon as {@code acr_values} in the format
-     * {@code <ProcessDefinitionName:Version>}. Enrolment flows (registration, invited-user) use the
-     * enrol PD configured on the referenced Daon IDP instead ({@link #DAON_ENROL_PD}).
+     * Authenticator configuration property key for the Daon <b>login</b> process definition (PD).
      */
     public static final String DAON_LOGIN_PD = "daon_login_pd";
 
     /**
-     * Configuration property key for the Daon <b>enrol</b> process definition (PD), configured on the
-     * referenced Daon TrustX IDP connection (not on the authenticator). It drives the enrolment flows
-     * (registration and invited-user) and is sent to Daon as {@code acr_values}. Resolved at runtime
-     * from the referenced IDP alongside its OIDC configuration.
+     * Configuration property key for the Daon <b>enrol</b> process definition (PD).
      */
     public static final String DAON_ENROL_PD = "daon_enrol_pd";
 
@@ -215,6 +192,22 @@ public class DaonConstants {
      * context's last authenticated user is the federated Daon identity.</p>
      */
     public static final String DAON_ENROLLING_USER = "daon_enrolling_user";
+
+    /**
+     * Authentication-context property holding the tenant domain of the local user an enrolment request is
+     * enrolling, stashed alongside {@link #DAON_ENROLLING_USER}.
+     *
+     * <p>The federated association is stored against (username, userstore domain, <b>tenant</b>), so the
+     * enrolment must write it under the same tenant the login step later reads it back with — the
+     * <b>user's</b> tenant. That is not necessarily the authentication context's tenant, which is the
+     * service provider's: in a B2B/organization login the two differ, and writing under one while reading
+     * under the other leaves the account looking permanently not-enrolled.</p>
+     *
+     * <p>Stashed at request-build time for the same reason as {@link #DAON_ENROLLING_USER}: by the callback
+     * the context's last authenticated user is the federated Daon identity, whose tenant is not the local
+     * user's.</p>
+     */
+    public static final String DAON_ENROLLING_USER_TENANT = "daon_enrolling_user_tenant";
 
     /**
      * Flow-context property keys carrying the Daon federated association (IDP name + Daon subject /
