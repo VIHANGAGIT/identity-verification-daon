@@ -22,7 +22,6 @@ import org.testng.annotations.Test;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineClientException;
 import org.wso2.carbon.identity.flow.execution.engine.exception.FlowEngineServerException;
-import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 
@@ -31,6 +30,7 @@ import java.util.Set;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
@@ -81,13 +81,13 @@ public class DaonExceptionMgtTest {
     }
 
     /**
-     * DAON-60001 is a published contract: the recovery portal and the login retry page switch on it.
+     * DAON-60001 is what an adaptive script's onFail handler keys off to route a not-enrolled user into
+     * enrolment, so the literal is a published contract with every such script.
      */
     @Test
     public void testUserNotEnrolledCodeIsStable() {
 
         assertEquals(ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode(), "DAON-60001");
-        assertEquals(DaonConstants.USER_NOT_ENROLLED_ERROR_CODE, "DAON-60001");
     }
 
     @Test
@@ -149,14 +149,69 @@ public class DaonExceptionMgtTest {
         assertTrue(e.getDescription().contains("REGISTRATION"), e.getDescription());
     }
 
+    /**
+     * A client failure is rendered to the end user, so it must carry the portal's i18n tokens and nothing
+     * else: the diagnostic description names the account being recovered and must not cross to the browser.
+     */
     @Test
-    public void testHandleFlowClientException() {
+    public void testHandleFlowClientExceptionCarriesI18nTokensOnly() {
 
         FlowEngineClientException e = DaonExceptionMgt.handleFlowClientException(
-                ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH, "alice@example.com");
+                ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH);
 
         assertEquals(e.getErrorCode(), "DAON-60006");
-        assertTrue(e.getDescription().contains("alice@example.com"), e.getDescription());
+        assertEquals(e.getMessage(), "{{daon.identity.verification.identity.mismatch.message}}");
+        assertEquals(e.getDescription(), "{{daon.identity.verification.identity.mismatch.description}}");
+    }
+
+    /**
+     * An error with no i18n key is not user-facing. It must not produce a token, or the portal would render
+     * an unresolvable key in place of its own flow-type wording.
+     */
+    @Test
+    public void testServerErrorsCarryNoUserFacingToken() {
+
+        assertNull(ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND.getUserMessageToken());
+        assertNull(ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND.getUserDescriptionToken());
+        assertEquals(DaonExceptionMgt.userMessage(ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND),
+                ErrorMessage.ERROR_ID_TOKEN_NOT_FOUND.getMessage());
+    }
+
+    /**
+     * Every failure a flow can show the end user must name a key the portal resolves; without one the page
+     * falls back to generic wording and the reason is lost.
+     */
+    @Test
+    public void testUserFacingClientErrorsNameAnI18nKey() {
+
+        ErrorMessage[] userFacing = {
+                ErrorMessage.ERROR_USER_NOT_ENROLLED,
+                ErrorMessage.ERROR_VERIFICATION_CANCELLED,
+                ErrorMessage.ERROR_CLAIMS_VERIFICATION_MISMATCH,
+                ErrorMessage.ERROR_IDENTITY_VERIFICATION_FAILED,
+                ErrorMessage.ERROR_VERIFICATION_NOT_COMPLETED,
+                ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH
+        };
+
+        for (ErrorMessage error : userFacing) {
+            assertNotNull(error.getI18nKey(), error.name() + " must name an i18n key.");
+            assertEquals(error.getUserMessageToken(), "{{" + error.getI18nKey() + ".message}}");
+            assertEquals(error.getUserDescriptionToken(), "{{" + error.getI18nKey() + ".description}}");
+        }
+    }
+
+    /**
+     * The 65xxx band is administrator-facing by construction; a key there would put text like "check the
+     * verifier id it references" in front of an end user.
+     */
+    @Test
+    public void testServerErrorBandHasNoI18nKeys() {
+
+        for (ErrorMessage error : ErrorMessage.values()) {
+            if (error.getCode().startsWith(DaonErrorConstants.DAON_ERROR_PREFIX + "65")) {
+                assertNull(error.getI18nKey(), error.name() + " is a server error and must not be shown.");
+            }
+        }
     }
 
     /**

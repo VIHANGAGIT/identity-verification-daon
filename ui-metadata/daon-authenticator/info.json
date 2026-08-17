@@ -1,7 +1,7 @@
 {
     "id": "daon-authenticator",
     "name": "Daon TrustX Authenticator",
-    "description": "Add Daon TrustX login (re-verification) to a flow using a Daon Identity Verifier connection and a login process definition.",
+    "description": "Login users with Daon TrustX identity verification.",
     "image": "assets/images/logos/daon.svg",
     "category": "DEFAULT",
     "displayOrder": 16,

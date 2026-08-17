@@ -37,6 +37,7 @@ import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorMetad
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
+import org.wso2.carbon.identity.flow.mgt.Constants.ExecutorBehaviorFlags;
 import org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes;
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.organization.management.service.util.OrganizationManagementUtil;
@@ -112,30 +113,25 @@ public class DaonExecutor extends OpenIDConnectExecutor {
     }
 
     /**
-     * Declares the flows this executor may be used in. This is what makes it selectable as a step in
-     * the flow composer once the connector jar is deployed, with no change needed in the flow
-     * management API.
+     * Declares the flows this executor can be used in.
      */
     @Override
     public Set<FlowTypes> getSupportedFlowTypes() {
 
-        return EnumSet.of(FlowTypes.REGISTRATION,
-                FlowTypes.INVITED_USER_REGISTRATION,
-                FlowTypes.PASSWORD_RECOVERY);
+        return EnumSet.allOf(FlowTypes.class);
     }
 
     /**
-     * Describes how the flow composer should present this step. The associated authenticator lets the
-     * flow management API work out which connections apply, so no hardcoded mapping is needed there.
+     * Describes how the flow composer should present this step.
      */
     @Override
     public FlowExecutorMetadata getExecutorMetadata() {
 
         return FlowExecutorMetadata.builder()
                 .displayName(DaonConstants.AUTHENTICATOR_FRIENDLY_NAME + " Verification")
-                .description("Verifies the user's identity with Daon TrustX before the flow continues.")
+                .description("Verify user identity with Daon TrustX.")
                 .icon("assets/images/icons/daon.svg")
-                .tags(Collections.singletonList(Constants.ExecutorTags.RECOVERY_FACTOR))
+                .behaviorFlags(Collections.singletonList(ExecutorBehaviorFlags.RECOVERY_FACTOR))
                 .associatedAuthenticator(DaonConstants.AUTHENTICATOR_NAME)
                 .connectionRequired(true)
                 .build();
@@ -158,14 +154,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 LOG.debug(callbackError.getCode() + " - Daon returned an error on the flow callback. error="
                         + error + ", error_description=" + errorDescription);
             }
-            ExecutorResponse errorResponse = new ExecutorResponse();
-            errorResponse.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
-            // The flow engine copies the code/message/description straight off the ExecutorResponse into the
-            // client error response, so this is the channel that carries the Daon code to the portal.
-            errorResponse.setErrorCode(callbackError.getCode());
-            errorResponse.setErrorMessage(callbackError.getMessage());
-            errorResponse.setErrorDescription(callbackError.getMessage());
-            return errorResponse;
+            return userError(callbackError);
         }
 
         flowExecutionContext.setPortalUrl(
@@ -187,17 +176,38 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         // association there is no login_hint to send, so fail cleanly instead of attempting enrolment.
         if (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowExecutionContext.getFlowType())
                 && StringUtils.isBlank(flowExecutionContext.getAuthenticatorProperties().get(DAON_LOGIN_HINT))) {
-            ExecutorResponse notEnrolled = new ExecutorResponse();
-            notEnrolled.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
-            // Set a stable, machine-readable error code so the recovery portal can switch on it (via the
-            // flow API's error.code) instead of parsing the message. The flow engine propagates the
-            // executor's error code/description straight through to the client error response.
-            notEnrolled.setErrorCode(ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode());
-            notEnrolled.setErrorMessage(ErrorMessage.ERROR_USER_NOT_ENROLLED.getMessage());
-            notEnrolled.setErrorDescription(ErrorMessage.ERROR_USER_NOT_ENROLLED.getMessage());
-            return notEnrolled;
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_USER_NOT_ENROLLED,
+                    flowExecutionContext.getFlowType()));
+            return userError(ErrorMessage.ERROR_USER_NOT_ENROLLED);
         }
         return super.execute(flowExecutionContext);
+    }
+
+    /**
+     * Ends the flow with a failure the end user is meant to see.
+     *
+     * <p>The flow engine copies the code, message and description straight off the {@link ExecutorResponse}
+     * into the client error response, so this is the channel that carries the {@code DAON-} code to the
+     * portal. The message and description are the error's {@code {{ }}} i18n tokens: the portal renders an
+     * executor's wording only when it arrives wrapped that way, and otherwise keeps its own localized
+     * flow-type wording — which is what the errors with no key (the administrator-facing ones) want.</p>
+     *
+     * <p>The diagnostic description is not sent; log it separately where the detail is needed.</p>
+     *
+     * <p>{@code setErrorMessage} is deprecated in favour of {@code addMessage}, but that is not an option
+     * here: {@code TaskExecutionNode} carries an executor's messages only on {@code STATUS_RETRY}, and
+     * discards them on {@code STATUS_USER_ERROR}. {@code STATUS_RETRY} in turn re-renders the current
+     * node's page, which a Daon execution step does not have — the flow engine dereferences the missing
+     * page mapping. Until that gap closes, the error object is the only channel out.</p>
+     */
+    private ExecutorResponse userError(ErrorMessage error) {
+
+        ExecutorResponse response = new ExecutorResponse();
+        response.setResult(Constants.ExecutorStatus.STATUS_USER_ERROR);
+        response.setErrorCode(error.getCode());
+        response.setErrorMessage(DaonExceptionMgt.userMessage(error));
+        response.setErrorDescription(DaonExceptionMgt.userDescription(error));
+        return response;
     }
 
     /**
@@ -451,9 +461,12 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                         + returnedPreferredUsername);
             }
             // A client error, not a server fault: Daon worked correctly, it just verified someone other
-            // than the account holder being recovered.
-            throw DaonExceptionMgt.handleFlowClientException(ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH,
-                    expectedSubject);
+            // than the account holder being recovered. The compared identifiers are in the debug line
+            // above, so this one carries no personal identifier.
+            LOG.error(ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH.getCode()
+                    + " - The identity Daon verified does not match the Daon subject recorded for the "
+                    + "account being recovered.");
+            throw DaonExceptionMgt.handleFlowClientException(ErrorMessage.ERROR_RECOVERY_IDENTITY_MISMATCH);
         }
         return new HashMap<>();
     }

@@ -2,7 +2,7 @@
     "create": {
         "image": "assets/images/logos/daon.svg",
         "header": "Daon TrustX Identity Verifier",
-        "Subheading": "Create a Daon TrustX identity-verification connection with the OIDC client credentials, endpoints and enrol process definition.",
+        "Subheading": "Enrol and verify user identities with Daon TrustX.",
         "documentation": "",
         "modal": {
             "form": {
@@ -153,7 +153,7 @@
                     },
                     {
                         "fieldName": "Enrol Process Definition",
-                        "hint": "Daon process definition used for the enrolment flows (registration and invited-user), sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>. Login and password recovery use the login process definition on the referencing Daon TrustX Authenticator."
+                        "hint": "Daon process definition used for the enrolment flows (registration and invited-user)."
                     }
                 ]
             }
@@ -255,7 +255,7 @@
                     "name": "ClientId",
                     "label": "Client ID",
                     "placeholder": "Enter the Client ID of the OIDC client registered in Daon TrustX.",
-                    "hint": "The Client ID of the OIDC client registered in the Daon TrustX tenant.",
+                    "hint": "Client ID of the OIDC client registered in Daon TrustX.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -274,7 +274,7 @@
                     "name": "ClientSecret",
                     "label": "Client Secret",
                     "placeholder": "Enter the Client Secret of the OIDC client registered in Daon TrustX.",
-                    "hint": "The Client Secret of the OIDC client registered in the Daon TrustX tenant.",
+                    "hint": "Client Secret of the OIDC client registered in Daon TrustX.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -291,7 +291,7 @@
                     "name": "OAuth2AuthzEPUrl",
                     "label": "Authorization Endpoint URL",
                     "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/auth",
-                    "hint": "The Daon TrustX OIDC authorization endpoint URL.",
+                    "hint": "Daon TrustX OIDC authorization endpoint.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -308,7 +308,7 @@
                     "name": "OAuth2TokenEPUrl",
                     "label": "Token Endpoint URL",
                     "placeholder": "https://<tenant>.<region>.trustx.com/auth/realms/<tenant>/protocol/openid-connect/token",
-                    "hint": "The Daon TrustX OIDC token endpoint URL.",
+                    "hint": "Daon TrustX OIDC token endpoint.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -325,7 +325,7 @@
                     "name": "Scopes",
                     "label": "Scopes",
                     "placeholder": "openid profile document",
-                    "hint": "OIDC scopes to request from Daon. Include 'document' to receive verified claims.",
+                    "hint": "Scopes to request from Daon. Include 'document' for verified claims.",
                     "required": false,
                     "readOnly": false,
                     "value": "openid profile document",
@@ -342,7 +342,7 @@
                     "name": "daon_enrol_pd",
                     "label": "Enrol Process Definition",
                     "placeholder": "e.g. EnrolProcess:1",
-                    "hint": "Daon process definition used for the enrolment flows (registration and invited-user), as <Name:Version>, sent as acr_values. Login and password recovery use the login process definition on the referencing Daon TrustX Authenticator.",
+                    "hint": "Daon process definition for enrolment flows, as <Name:Version>. Sent as acr_values.",
                     "required": false,
                     "readOnly": false,
                     "value": "",

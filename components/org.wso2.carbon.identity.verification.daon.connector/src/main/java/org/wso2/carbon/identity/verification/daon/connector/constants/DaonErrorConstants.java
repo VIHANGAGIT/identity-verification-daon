@@ -40,10 +40,14 @@ public class DaonErrorConstants {
     /**
      * Daon connector errors.
      *
-     * <p>{@code message} is the short, user-safe title — for client errors this is the text the end user
-     * sees. {@code description} is the diagnostic detail and may carry {@code %s} placeholders, formatted
-     * with the caller's arguments by
+     * <p>{@code message} is the short, user-safe title. {@code description} is the diagnostic detail and
+     * may carry {@code %s} placeholders, formatted with the caller's arguments by
      * {@link org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt}.</p>
+     *
+     * <p>{@code i18nKey} names the flow portal resource bundle entry that renders the failure to the end
+     * user, and is what makes an error user-facing at all: the portal shows an executor's message and
+     * description only when they arrive wrapped as {@code {{key}}} tokens (see
+     * {@link #getUserMessageToken()}), and falls back to its own localized flow-type wording otherwise.
      */
     public enum ErrorMessage {
 
@@ -52,38 +56,45 @@ public class DaonErrorConstants {
         /**
          * The user has no Daon federated association, so there is nothing to re-verify against.
          *
-         * <p>The resulting {@code DAON-60001} is a published contract: the recovery portal and the login
-         * retry page both switch on this literal. Do not renumber it.</p>
+         * <p>The resulting {@code DAON-60001} is what an adaptive script's {@code onFail} handler keys off
+         * to route a not-enrolled user into enrolment (see {@code docs/adaptive-scripts}). No portal reads
+         * it: what the end user is shown comes from {@code i18nKey} below. Do not renumber it.</p>
          */
         ERROR_USER_NOT_ENROLLED("60001",
                 "Your account is not enrolled with Daon TrustX for identity verification. "
                         + "Please contact your administrator.",
-                "No Daon federated association exists for the user in the %s flow."),
+                "No Daon federated association exists for the user in the %s flow.",
+                "daon.identity.verification.not.enrolled"),
 
         ERROR_VERIFICATION_CANCELLED("60002",
                 "Identity verification was cancelled or not completed. Please try again.",
                 "Daon returned the access_denied error on the callback; the user cancelled or "
-                        + "declined the verification."),
+                        + "declined the verification.",
+                "daon.identity.verification.cancelled"),
 
         ERROR_CLAIMS_VERIFICATION_MISMATCH("60003",
                 "The details you entered do not match your identity document. "
                         + "Please check your information and try again.",
                 "Daon reported CLAIMS_VERIFICATION_MISMATCH: the claim values sent as OIDC "
-                        + "value-requests did not match the identity document."),
+                        + "value-requests did not match the identity document.",
+                "daon.identity.verification.details.mismatch"),
 
         ERROR_IDENTITY_VERIFICATION_FAILED("60004",
                 "Your identity could not be verified. Please try again or contact support.",
-                "Daon returned the FailedToVerifyUser error on the callback."),
+                "Daon returned the FailedToVerifyUser error on the callback.",
+                "daon.identity.verification.failed"),
 
         ERROR_VERIFICATION_NOT_COMPLETED("60005",
                 "Identity verification could not be completed. Please try again or contact support.",
-                "Daon returned an unrecognised error on the callback. error: %s, error_description: %s"),
+                "Daon returned an unrecognised error on the callback. error: %s, error_description: %s",
+                "daon.identity.verification.failed"),
 
         ERROR_RECOVERY_IDENTITY_MISMATCH("60006",
                 "Identity verification failed: the verified identity does not match the user being "
                         + "recovered.",
                 "The identity Daon verified does not match the Daon subject recorded for the account "
-                        + "being recovered. Expected: %s"),
+                        + "being recovered. Expected: %s",
+                "daon.identity.verification.identity.mismatch"),
 
         ERROR_INVALID_VERIFICATION_FLOW_STATUS("60007",
                 "Invalid Daon verification flow status provided.",
@@ -253,12 +264,19 @@ public class DaonErrorConstants {
         private final String code;
         private final String message;
         private final String description;
+        private final String i18nKey;
 
         ErrorMessage(String code, String message, String description) {
+
+            this(code, message, description, null);
+        }
+
+        ErrorMessage(String code, String message, String description, String i18nKey) {
 
             this.code = code;
             this.message = message;
             this.description = description;
+            this.i18nKey = i18nKey;
         }
 
         /**
@@ -283,6 +301,36 @@ public class DaonErrorConstants {
         public String getDescription() {
 
             return description;
+        }
+
+        /**
+         * @return the flow portal resource bundle key, or {@code null} when this error is not user-facing.
+         */
+        public String getI18nKey() {
+
+            return i18nKey;
+        }
+
+        /**
+         * The heading the flow portal renders, as the {@code {{key}}} token that marks it user-facing.
+         *
+         * @return e.g. {@code {{daon.identity.verification.cancelled.message}}}, or {@code null} when this error
+         *         has no user-facing wording and the portal should keep its own.
+         */
+        public String getUserMessageToken() {
+
+            return i18nKey == null ? null : "{{" + i18nKey + ".message}}";
+        }
+
+        /**
+         * The body the flow portal renders, as the {@code {{key}}} token that marks it user-facing.
+         *
+         * @return e.g. {@code {{daon.identity.verification.cancelled.description}}}, or {@code null} when this
+         *         error has no user-facing wording.
+         */
+        public String getUserDescriptionToken() {
+
+            return i18nKey == null ? null : "{{" + i18nKey + ".description}}";
         }
 
         @Override

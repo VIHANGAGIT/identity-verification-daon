@@ -97,16 +97,41 @@ public class DaonExceptionMgt {
 
     // Flow execution engine exceptions.
 
-    public static FlowEngineClientException handleFlowClientException(ErrorMessage error, Object... data) {
+    /**
+     * Builds a client exception carrying the {@code {{ }}} i18n tokens the flow portal renders, so the
+     * wording the end user sees is resolved and localized by the portal rather than shipped from here.
+     * An error with no i18n key falls back to its catalogue message, which the portal leaves unrendered in
+     * favour of its own flow-type wording.
+     *
+     * <p>The diagnostic description is deliberately not sent — it can name internal configuration. Log it
+     * at the call site with {@link #errorLog(ErrorMessage, Object...)} where the detail is needed.</p>
+     */
+    public static FlowEngineClientException handleFlowClientException(ErrorMessage error) {
 
-        return new FlowEngineClientException(error.getCode(), error.getMessage(), describe(error, data));
+        return new FlowEngineClientException(error.getCode(), userMessage(error), userDescription(error));
     }
 
-    public static FlowEngineClientException handleFlowClientException(ErrorMessage error, Throwable cause,
-                                                                      Object... data) {
+    public static FlowEngineClientException handleFlowClientException(ErrorMessage error, Throwable cause) {
 
-        return new FlowEngineClientException(error.getCode(), error.getMessage(), describe(error, data),
+        return new FlowEngineClientException(error.getCode(), userMessage(error), userDescription(error),
                 cause);
+    }
+
+    /**
+     * The heading the flow portal should render for an error, as the token that marks it user-facing.
+     */
+    public static String userMessage(ErrorMessage error) {
+
+        return error.getUserMessageToken() != null ? error.getUserMessageToken() : error.getMessage();
+    }
+
+    /**
+     * The body the flow portal should render for an error, as the token that marks it user-facing.
+     */
+    public static String userDescription(ErrorMessage error) {
+
+        return error.getUserDescriptionToken() != null
+                ? error.getUserDescriptionToken() : error.getMessage();
     }
 
     public static FlowEngineServerException handleFlowServerException(ErrorMessage error, Object... data) {

@@ -1,7 +1,7 @@
 {
     "id": "daon-authenticator",
     "name": "Daon TrustX Authenticator",
-    "description": "Add Daon TrustX login (re-verification) to a flow, using a Daon Identity Verifier connection and a login process definition.",
+    "description": "Login users with Daon TrustX identity verification.",
     "image": "assets/images/logos/daon.svg",
     "category": "DEFAULT",
     "displayOrder": 16,
@@ -29,7 +29,7 @@
                         {
                             "key": "daon_idp_id",
                             "displayName": "Daon Identity Verifier",
-                            "description": "The Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses. Stored as the resource ID (UUID) of that connection.",
+                            "description": "Daon Identity Verifier connection supplying the OIDC configurations.",
                             "type": "STRING",
                             "displayOrder": 1,
                             "regex": ".*",
@@ -42,7 +42,7 @@
                         {
                             "key": "daon_login_pd",
                             "displayName": "Login Process Definition",
-                            "description": "Daon process definition used for the login and password-recovery (re-verification) flows, as <ProcessDefinitionName:Version>. Sent as acr_values. Enrolment flows use the enrol process definition configured on the referenced Daon Identity Verifier.",
+                            "description": "Daon process definition for login and password-recovery flows, as <Name:Version>.",
                             "type": "STRING",
                             "displayOrder": 2,
                             "regex": ".*",

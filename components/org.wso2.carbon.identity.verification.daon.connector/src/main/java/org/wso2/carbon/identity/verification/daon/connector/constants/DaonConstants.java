@@ -230,18 +230,6 @@ public class DaonConstants {
     public static final String FLOW_TYPE_REGISTRATION = "REGISTRATION";
     public static final String FLOW_TYPE_INVITED_USER_REGISTRATION = "INVITED_USER_REGISTRATION";
 
-    /**
-     * Stable error code surfaced to the authentication retry page when a user who is not enrolled with
-     * Daon reaches the Daon login step. The framework drops an {@code AuthenticationFailedException}'s
-     * error code before it reaches the portal, so the login authenticator redirects to the retry page
-     * with this code as the {@code errorCode} query param, which the portal switches on to show a
-     * dedicated "not enrolled" message.
-     *
-     * <p>Resolves to {@code DAON-60001}. This literal is a published contract with the recovery portal
-     * and the retry page, so {@link ErrorMessage#ERROR_USER_NOT_ENROLLED} must keep its code.</p>
-     */
-    public static final String USER_NOT_ENROLLED_ERROR_CODE = ErrorMessage.ERROR_USER_NOT_ENROLLED.getCode();
-
     // Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
     public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";
 

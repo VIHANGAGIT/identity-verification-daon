@@ -1,7 +1,7 @@
 {
     "id": "daon-idv",
     "name": "Daon TrustX Identity Verifier",
-    "description": "Daon TrustX identity-verification connection (OIDC credentials, endpoints and enrol process definition). Add it to registration and invited-user flows to enrol and verify users; reference it from Daon TrustX Authenticator login connections.",
+    "description": "Enrol and verify user identities with Daon TrustX.",
     "image": "assets/images/logos/daon.svg",
     "category": "DEFAULT",
     "displayOrder": 15,
@@ -29,7 +29,7 @@
                         {
                             "key": "ClientId",
                             "displayName": "Client ID",
-                            "description": "Daon TrustX OIDC Client ID.",
+                            "description": "Client ID of the OIDC client registered in Daon TrustX.",
                             "type": "STRING",
                             "displayOrder": 1,
                             "regex": ".*",
@@ -42,7 +42,7 @@
                         {
                             "key": "ClientSecret",
                             "displayName": "Client Secret",
-                            "description": "Daon TrustX OIDC Client Secret.",
+                            "description": "Client Secret of the OIDC client registered in Daon TrustX.",
                             "type": "STRING",
                             "displayOrder": 2,
                             "regex": ".*",
@@ -55,7 +55,7 @@
                         {
                             "key": "OAuth2AuthzEPUrl",
                             "displayName": "Authorization Endpoint URL",
-                            "description": "Daon TrustX OIDC authorization endpoint URL.",
+                            "description": "Daon TrustX OIDC authorization endpoint.",
                             "type": "STRING",
                             "displayOrder": 3,
                             "regex": ".*",
@@ -68,7 +68,7 @@
                         {
                             "key": "OAuth2TokenEPUrl",
                             "displayName": "Token Endpoint URL",
-                            "description": "Daon TrustX OIDC token endpoint URL.",
+                            "description": "Daon TrustX OIDC token endpoint.",
                             "type": "STRING",
                             "displayOrder": 4,
                             "regex": ".*",
@@ -81,7 +81,7 @@
                         {
                             "key": "callbackUrl",
                             "displayName": "Callback URL",
-                            "description": "The Authorized Redirect URI to register on the Daon OIDC client.",
+                            "description": "Authorized Redirect URI to register on the Daon OIDC client.",
                             "type": "STRING",
                             "displayOrder": 5,
                             "regex": ".*",
@@ -94,7 +94,7 @@
                         {
                             "key": "Scopes",
                             "displayName": "Scopes",
-                            "description": "OIDC scopes to request from Daon (e.g. openid profile document).",
+                            "description": "Scopes to request from Daon. Include 'document' for verified claims.",
                             "type": "STRING",
                             "displayOrder": 6,
                             "regex": ".*",
@@ -107,7 +107,7 @@
                         {
                             "key": "daon_enrol_pd",
                             "displayName": "Enrol Process Definition",
-                            "description": "Daon process definition used for the enrolment flows (registration and invited-user), as <ProcessDefinitionName:Version>. Sent as acr_values. Login and password recovery use the login process definition configured on the referencing Daon TrustX Authenticator.",
+                            "description": "Daon process definition for enrolment flows, as <Name:Version>.",
                             "type": "STRING",
                             "displayOrder": 7,
                             "regex": ".*",

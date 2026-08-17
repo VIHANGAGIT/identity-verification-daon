@@ -2,7 +2,7 @@
     "create": {
         "image": "assets/images/logos/daon.svg",
         "header": "Daon TrustX Authenticator",
-        "Subheading": "Add Daon TrustX identity verification and login to a flow using a Daon Identity Verifier connection.",
+        "Subheading": "Login users with Daon TrustX identity verification.",
         "documentation": "",
         "modal": {
             "form": {
@@ -59,7 +59,7 @@
                 "message": {
                     "header": "Prerequisites",
                     "paragraphs": [
-                        "First create a <strong>Daon Identity Verifier</strong> connection (holding the OIDC client credentials, endpoints and the <strong>enrol process definition</strong>). Then select it here as the <strong>Daon Identity Verifier</strong>, along with the <strong>login process definition</strong> to send as acr_values during login and password recovery."
+                        "Create a <strong>Daon Identity Verifier</strong> connection first, then select it below."
                     ]
                 },
                 "fields": [
@@ -69,11 +69,11 @@
                     },
                     {
                         "fieldName": "Daon Identity Verifier",
-                        "hint": "The <Code class=\"inline-code\">Daon Identity Verifier</Code> connection whose OIDC client credentials and endpoints this authenticator uses. Only Daon Identity Verifier connections of this organization are listed."
+                        "hint": "Daon Identity Verifier connection supplying the OIDC configurations."
                     },
                     {
                         "fieldName": "Login Process Definition",
-                        "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, sent as <Code class=\"inline-code\">acr_values</Code> in the format <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>. Enrolment uses the enrol process definition configured on the referenced Daon Identity Verifier."
+                        "hint": "Daon process definition for login and password-recovery flows, as <Code class=\"inline-code\">&lt;Name:Version&gt;</Code>."
                     }
                 ]
             }
@@ -155,7 +155,7 @@
                     "name": "daon_idp_id",
                     "label": "Daon Identity Verifier",
                     "placeholder": "Select a Daon Identity Verifier connection.",
-                    "hint": "The Daon Identity Verifier connection whose OIDC client credentials and endpoints this authenticator uses. Only Daon Identity Verifier connections of this organization are listed.",
+                    "hint": "Daon Identity Verifier connection supplying the OIDC configurations.",
                     "required": true,
                     "readOnly": false,
                     "value": "",
@@ -178,7 +178,7 @@
                     "name": "daon_login_pd",
                     "label": "Login Process Definition",
                     "placeholder": "e.g. LoginProcess:1",
-                    "hint": "Daon process definition used for the login and password-recovery (re-verification) flows, as <Name:Version>, sent as acr_values. Enrolment uses the enrol process definition on the referenced Daon Identity Verifier.",
+                    "hint": "Daon process definition for login and password-recovery flows, as <Name:Version>.",
                     "required": false,
                     "readOnly": false,
                     "value": "",
