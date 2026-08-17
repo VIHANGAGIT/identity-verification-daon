@@ -34,9 +34,7 @@ import org.wso2.carbon.identity.application.common.model.ClaimMapping;
 import org.wso2.carbon.identity.application.common.model.Property;
 import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
-import org.wso2.carbon.identity.core.model.IdentityErrorMsgContext;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
-import org.wso2.carbon.identity.core.util.IdentityUtil;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
@@ -113,13 +111,6 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * heading stays localized while the message below it is the Daon one, passed through verbatim.
      */
     private static final String RETRY_PAGE_STATUS_KEY = "unable.to.proceed";
-
-    /**
-     * Authentication-portal resource-bundle key naming the login page's error banner text for a failed
-     * identity verification. Connector-neutral on purpose, so every identity verification connector can
-     * share the one entry.
-     */
-    private static final String IDENTITY_VERIFICATION_FAILED_MSG_KEY = "identity.verification.failed.message";
 
     @Override
     public String getName() {
@@ -752,35 +743,18 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * and the OAuth layer turns them into {@code error} / {@code error_description} on the redirect back
      * to the application. This is what carries the {@code DAON-} code out of the server, since an
      * {@link AuthenticationFailedException}'s own code is dropped before the portal renders.</p>
+     *
+     * <p>Nothing is named for the login page's error banner. When the framework sends the user back to a
+     * multi-option step, that banner's text comes from {@code authFailureMsg}, which the authentication
+     * portal renders only for keys in its own resource bundle — it carries no identity verification entry,
+     * and the {@code IdentityErrorMsgContext} hook that would set one is itself inert unless
+     * {@code showAuthFailureReason} is enabled on the server. The user-facing channels that do work are the
+     * retry page (see {@link #failRequest}) and the error the application receives.</p>
      */
     private void setErrorInformation(AuthenticationContext context, ErrorMessage error) {
 
         context.setProperty(FrameworkConstants.AUTH_ERROR_CODE, error.getCode());
         context.setProperty(FrameworkConstants.AUTH_ERROR_MSG, error.getMessage());
-        setLoginPageFailureMessage(error);
-    }
-
-    /**
-     * Names the message the login page shows in its error banner when the framework sends the user back to
-     * a multi-option step after this one failed.
-     *
-     * <p>That page takes its text from the {@code authFailureMsg} query parameter, which
-     * {@code DefaultStepHandler} otherwise hard-codes to {@code login.fail.message} ("check your username
-     * and password") — wrong for a verification failure. The one hook into it is the identity error
-     * context: the handler splits its code on the first {@code :} and forwards the remainder as
-     * {@code authFailureMsg}, with the code itself as {@code errorCode}.</p>
-     *
-     * <p>A key rather than the message text, because the login page — unlike the retry page — only accepts
-     * an {@code authFailureMsg} that resolves in its resource bundle, and drops anything else. That check
-     * is what stops a crafted {@code ?authFailure=true&authFailureMsg=...} from putting arbitrary text on a
-     * real login page, so it is worked with rather than around. The key is deliberately
-     * connector-neutral: any identity verification connector can send the same one, and the specific cause
-     * stays in this catalogue, the server log, and {@code error_description}.</p>
-     */
-    private void setLoginPageFailureMessage(ErrorMessage error) {
-
-        IdentityUtil.setIdentityErrorMsg(
-                new IdentityErrorMsgContext(error.getCode() + ":" + IDENTITY_VERIFICATION_FAILED_MSG_KEY));
     }
 
     /**
