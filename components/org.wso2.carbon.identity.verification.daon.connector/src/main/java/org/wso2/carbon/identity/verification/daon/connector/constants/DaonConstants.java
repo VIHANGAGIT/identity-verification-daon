@@ -139,10 +139,7 @@ public class DaonConstants {
     public static final String DAON_RUNTIME_PARAM_ENROL = "enrol";
 
     /**
-     * Authenticator configuration property key holding the resource id (UUID) of the referenced Daon
-     * OIDC IDP connection. The Daon TrustX Authenticator connection carries no OIDC credentials itself;
-     * the client id/secret, authorize/token endpoints, scopes and enrol process definition are resolved
-     * at runtime from this referenced IDP via {@link org.wso2.carbon.idp.mgt.IdpManager#getIdPByResourceId}.
+     * Authenticator configuration property key holding the UUID of the referenced Daon IDP connection.
      */
     public static final String DAON_IDP_ID = "daon_idp_id";
 

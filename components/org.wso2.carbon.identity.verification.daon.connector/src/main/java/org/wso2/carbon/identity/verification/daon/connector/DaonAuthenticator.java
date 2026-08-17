@@ -71,34 +71,7 @@ import static org.wso2.carbon.identity.verification.daon.connector.constants.Dao
  * <p>Daon is a standard OIDC Authorization Code provider, so the protocol work — building the authorize
  * request (state, nonce, PKCE, scopes, callback URL), exchanging the code for tokens, parsing/validating
  * the ID token and mapping claims — is left entirely to {@link OpenIDConnectAuthenticator}. This class
- * only adds what is Daon-specific:</p>
- * <ul>
- *   <li>resolving the OIDC configuration of a <b>referencing</b> connection from the connection it
- *       references, before the parent builds any request (see {@link #prepareRequest});</li>
- *   <li>the Daon request parameters: the process definition ({@code acr_values}) and the
- *       {@code login_hint} of the enrolled user;</li>
- *   <li>gating login on Daon enrolment, binding the identity Daon verified back to the authenticating
- *       user, and mapping Daon's error callbacks to user-facing messages.</li>
- * </ul>
- *
- * <p>A connection can be configured in one of two ways, distinguished by whether it sets
- * {@code daon_idp_id}:</p>
- * <ul>
- *   <li><b>Self-contained</b> (a "Daon Identity Verifier" connection): no {@code daon_idp_id};
- *       the OIDC client credentials, endpoints and scope live on the connection's own authenticator
- *       config, and the federated association is keyed on this connection's own name.</li>
- *   <li><b>Referencing</b> (a "Daon TrustX Authenticator" login connection): sets {@code daon_idp_id} to
- *       the resource id of a self-contained Daon Identity Verifier connection; the OIDC
- *       config and the association key (IDP name) are resolved from that referenced connection, so every
- *       login connection referencing the same one shares a single enrolment.</li>
- * </ul>
- *
- * <p>Daon runs as a step after the user is identified, and only for users already enrolled with Daon —
- * i.e. those with a <b>federated association</b> with the (own or referenced) Daon IDP. The OIDC request
- * always carries the Daon {@code preferred_username} (from the association) as {@code login_hint} for
- * face re-verification, together with the configured <b>login process definition</b> (sent as
- * {@code acr_values}). A user with no Daon association is not enrolled: the login flow fails with an
- * error rather than attempting enrolment (enrolment happens in the registration/invited-user flow).</p>
+ * only adds what is Daon-specific.</p>
  */
 public class DaonAuthenticator extends OpenIDConnectAuthenticator
         implements FederatedApplicationAuthenticator {
@@ -107,8 +80,7 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     private static final Log LOG = LogFactory.getLog(DaonAuthenticator.class);
 
     /**
-     * Heading shown above a Daon failure on the retry page. An i18n key the page already ships, so the
-     * heading stays localized while the message below it is the Daon one, passed through verbatim.
+     * Heading shown above a Daon failure on the retry page.
      */
     private static final String RETRY_PAGE_STATUS_KEY = "unable.to.proceed";
 

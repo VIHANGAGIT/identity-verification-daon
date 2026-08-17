@@ -476,10 +476,6 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
     /**
      * Builds the subset of Daon-verified claims to write to a self-registering user's profile.
-     *
-     * <p>Includes every verified claim that the IDP maps to a real WSO2 local claim URI. Claims that
-     * fell back to a {@code http://wso2.org/daon/claims/*} dialect URI are excluded (they are not
-     * necessarily registered local claims). Name claims are handled via {@link #populateNameClaims}.</p>
      */
     private Map<String, Object> buildProfileClaims(JSONObject daonClaims, Map<String, String> extractedClaims) {
 
@@ -496,13 +492,6 @@ public class DaonExecutor extends OpenIDConnectExecutor {
     /**
      * Ensures givenname/lastname are populated. Split {@code given_name}/{@code family_name} claims take
      * precedence; otherwise Daon's combined {@code family_name_and_given_name} is split on {@code ^}.
-     *
-     * <p>The combined field is ordered {@code <family name>^<given names>}, as both its own claim name and
-     * the ICAO 9303 machine-readable-zone name field it derives from say: the primary identifier (surname)
-     * comes first, then the secondary identifier (given names). Getting this backwards silently swaps the
-     * first and last name of every self-registering user whose document carries only the combined field,
-     * so if a Daon tenant is ever seen emitting the opposite order, swap the two assignments below rather
-     * than leaving both orders "supported".</p>
      */
     private void populateNameClaims(JSONObject daonClaims, Map<String, Object> profileClaims) {
 
