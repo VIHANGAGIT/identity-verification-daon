@@ -230,7 +230,9 @@ public class DaonConstants {
     public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";
 
     /*
-     * WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
+     * Default targets for the halves of Daon's combined family_name_and_given_name, used only when the
+     * connection maps no local claim for the corresponding Daon name claim. A mapped name claim wins — see
+     * DaonExecutor#populateNameClaims.
      */
     public static final String WSO2_LASTNAME_CLAIM_URI = "http://wso2.org/claims/lastname";
     public static final String WSO2_GIVENNAME_CLAIM_URI = "http://wso2.org/claims/givenname";
