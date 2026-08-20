@@ -172,7 +172,9 @@ public final class DaonFederatedAssociationUtil {
     public static String getAssociatedDaonSubject(User user, String idpName) {
 
         if (user == null || StringUtils.isBlank(idpName)) {
-            LOG.debug("Null user or blank IDP name; cannot resolve the Daon verification state.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Null user or blank IDP name; cannot resolve the Daon verification state.");
+            }
             return null;
         }
         FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();
@@ -219,7 +221,9 @@ public final class DaonFederatedAssociationUtil {
 
         if (StringUtils.isBlank(tenantDomain) || StringUtils.isBlank(idpName)
                 || StringUtils.isBlank(daonSubject)) {
-            LOG.debug("Blank tenant domain, IDP name or Daon subject; cannot resolve the associated user.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Blank tenant domain, IDP name or Daon subject; cannot resolve the associated user.");
+            }
             return null;
         }
         FederatedAssociationManager manager = DaonConnectorDataHolder.getFederatedAssociationManager();

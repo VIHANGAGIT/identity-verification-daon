@@ -138,7 +138,9 @@ public final class DaonReferencedIdpUtil {
 
         Map<String, String> config = new HashMap<>();
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
-            LOG.debug("Blank Daon IDP resource id or tenant domain; nothing to resolve.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Blank Daon IDP resource id or tenant domain; nothing to resolve.");
+            }
             return config;
         }
         IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);
@@ -249,7 +251,9 @@ public final class DaonReferencedIdpUtil {
     public static String resolveIdpName(String idpResourceId, String tenantDomain) {
 
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
-            LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the IDP name.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the IDP name.");
+            }
             return null;
         }
         IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);
@@ -274,7 +278,9 @@ public final class DaonReferencedIdpUtil {
 
         Map<String, String> mappings = new HashMap<>();
         if (StringUtils.isBlank(idpResourceId) || StringUtils.isBlank(tenantDomain)) {
-            LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the claim mappings.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the claim mappings.");
+            }
             return mappings;
         }
         IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);

@@ -49,7 +49,7 @@ import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorC
  * use {@link #errorLog(ErrorMessage, Object...)} to keep the code in the log line without changing
  * control flow.</p>
  */
-public class DaonExceptionMgt {
+public final class DaonExceptionMgt {
 
     private DaonExceptionMgt() {
     }

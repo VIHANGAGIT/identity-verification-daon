@@ -31,7 +31,7 @@ package org.wso2.carbon.identity.verification.daon.connector.constants;
  *
  * @see org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt
  */
-public class DaonErrorConstants {
+public final class DaonErrorConstants {
 
     /** Prefix applied to every Daon error code, e.g. {@code DAON-65002}. */
     public static final String DAON_ERROR_PREFIX = "DAON-";

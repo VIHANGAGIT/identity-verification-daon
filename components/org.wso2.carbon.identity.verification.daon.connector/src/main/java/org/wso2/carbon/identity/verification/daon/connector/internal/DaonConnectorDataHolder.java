@@ -26,7 +26,7 @@ import org.wso2.carbon.user.core.service.RealmService;
 /**
  * Service holder for the Daon TrustX connector OSGi bundle.
  */
-public class DaonConnectorDataHolder {
+public final class DaonConnectorDataHolder {
 
     private static RealmService realmService;
     private static OrganizationManager organizationManager;

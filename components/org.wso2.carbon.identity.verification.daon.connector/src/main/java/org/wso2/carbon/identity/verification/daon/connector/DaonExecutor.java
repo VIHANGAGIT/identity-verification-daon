@@ -53,6 +53,7 @@ import org.wso2.carbon.identity.verification.daon.connector.util.DaonFederatedAs
 import org.wso2.carbon.identity.verification.daon.connector.util.DaonJwtUtil;
 import org.wso2.carbon.identity.verification.daon.connector.util.DaonReferencedIdpUtil;
 import org.wso2.carbon.user.api.UserStoreException;
+import org.wso2.carbon.user.api.UserStoreManager;
 import org.wso2.carbon.user.core.UniqueIDUserStoreManager;
 import org.wso2.carbon.utils.multitenancy.MultitenantConstants;
 
@@ -63,6 +64,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.regex.Pattern;
 
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.ACR_VALUES_PARAM;
 import static org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants.CLAIMS_PARAM;
@@ -101,6 +103,18 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
     private static final Log LOG = LogFactory.getLog(DaonExecutor.class);
     private static final String DAON_EXECUTOR_NAME = "DaonExecutor";
+
+    /**
+     * Dynamic flow-portal routes the OIDC {@code redirect_uri} is built from, mirroring the IS
+     * authentication portal's own paths: {@code /accounts/recovery} for password recovery and
+     * {@code /accounts/register} for (invited-user) registration, prefixed with {@code /t/<tenant>} or
+     * {@code /o/<organization>} outside the super tenant.
+     */
+    private static final String PORTAL_PATH_PREFIX = "/accounts/";
+    private static final String PORTAL_PATH_RECOVERY = "recovery";
+    private static final String PORTAL_PATH_REGISTER = "register";
+    private static final String ORGANIZATION_PATH_PREFIX = "/o/";
+    private static final String TENANT_PATH_PREFIX = "/t/";
 
     @Override
     public String getName() {
@@ -540,7 +554,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             return;
         }
         String[] parts = combined.split(
-                java.util.regex.Pattern.quote(DaonConstants.DAON_FIELD_SEPARATOR), 2);
+                Pattern.quote(DaonConstants.DAON_FIELD_SEPARATOR), 2);
         String familyName = parts[0].trim();
         String givenName = parts.length > 1 ? parts[1].trim() : null;
         if (!hasGiven && StringUtils.isNotBlank(givenName)) {
@@ -602,7 +616,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         }
         try {
             int tenantId = IdentityTenantUtil.getTenantId(context.getTenantDomain());
-            org.wso2.carbon.user.api.UserStoreManager usm = DaonConnectorDataHolder.getRealmService()
+            UserStoreManager usm = DaonConnectorDataHolder.getRealmService()
                     .getTenantUserRealm(tenantId).getUserStoreManager();
             if (usm instanceof UniqueIDUserStoreManager) {
                 Map<String, String> stored = ((UniqueIDUserStoreManager) usm)
@@ -674,8 +688,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
      */
     private String buildPortalUrl(String tenantDomain, String flowType) {
 
-        String portalPath = "/accounts/"
-                + (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowType) ? "recovery" : "register");
+        String portalPath = PORTAL_PATH_PREFIX
+                + (FLOW_TYPE_PASSWORD_RECOVERY.equals(flowType) ? PORTAL_PATH_RECOVERY : PORTAL_PATH_REGISTER);
         try {
             if (MultitenantConstants.SUPER_TENANT_DOMAIN_NAME.equals(tenantDomain)) {
                 return IdentityUtil.getServerURL(portalPath, true, true);
@@ -684,10 +698,11 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 OrganizationManager orgManager = DaonConnectorDataHolder.getOrganizationManager();
                 if (orgManager != null) {
                     String orgId = orgManager.resolveOrganizationId(tenantDomain);
-                    return IdentityUtil.getServerURL("/o/" + orgId + portalPath, true, true);
+                    return IdentityUtil.getServerURL(ORGANIZATION_PATH_PREFIX + orgId + portalPath,
+                            true, true);
                 }
             }
-            return IdentityUtil.getServerURL("/t/" + tenantDomain + portalPath, true, true);
+            return IdentityUtil.getServerURL(TENANT_PATH_PREFIX + tenantDomain + portalPath, true, true);
         } catch (Exception e) {
             // Deliberately broad: organization resolution throws a checked OrganizationManagementException
             // while IdentityUtil.getServerURL can throw unchecked IdentityRuntimeException, and neither

@@ -36,3 +36,5 @@ target
 
 .openapi-generator-ignore
 .openapi-generator/
+
+pom.xml.versionsBackup

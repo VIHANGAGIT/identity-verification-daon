@@ -116,8 +116,10 @@ public final class DaonJwtUtil {
         String trustFramework = verification != null
                 ? verification.optString(DaonConstants.TRUST_FRAMEWORK, null) : null;
         if (trustFramework == null) {
-            LOG.debug("The Daon ID token carries no verification.trust_framework descriptor; accepting the "
-                    + "verified claims on the 'claims' object alone.");
+            if (LOG.isDebugEnabled()) {
+                LOG.debug("The Daon ID token carries no verification.trust_framework descriptor; accepting the "
+                        + "verified claims on the 'claims' object alone.");
+            }
             return;
         }
         if (!DaonConstants.TRUST_FRAMEWORK_VALUE.equals(trustFramework)) {
