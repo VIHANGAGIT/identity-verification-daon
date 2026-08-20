@@ -22,7 +22,6 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.apache.oltu.oauth2.client.response.OAuthClientResponse;
-import org.wso2.carbon.identity.application.authentication.framework.FederatedApplicationAuthenticator;
 import org.wso2.carbon.identity.application.authentication.framework.context.AuthenticationContext;
 import org.wso2.carbon.identity.application.authentication.framework.exception.AuthenticationFailedException;
 import org.wso2.carbon.identity.application.authentication.framework.model.AuthenticatedUser;
@@ -74,8 +73,7 @@ import static org.wso2.carbon.identity.verification.daon.connector.constants.Dao
  * the ID token and mapping claims — is left entirely to {@link OpenIDConnectAuthenticator}. This class
  * only adds what is Daon-specific.</p>
  */
-public class DaonAuthenticator extends OpenIDConnectAuthenticator
-        implements FederatedApplicationAuthenticator {
+public class DaonAuthenticator extends OpenIDConnectAuthenticator {
 
     private static final long serialVersionUID = 1L;
     private static final Log LOG = LogFactory.getLog(DaonAuthenticator.class);

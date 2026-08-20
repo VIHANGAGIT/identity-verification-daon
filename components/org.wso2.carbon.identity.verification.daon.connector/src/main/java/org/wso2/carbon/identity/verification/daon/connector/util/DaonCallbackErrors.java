@@ -75,7 +75,7 @@ public final class DaonCallbackErrors {
         // The details submitted (e.g. the pre-filled name/date of birth sent as claim value-requests) did
         // not match the identity document. The reason is carried in error_description; key off it directly
         // so the message stays correct regardless of the accompanying error code.
-        if (normalizedDescription.toLowerCase().contains(REASON_CLAIMS_VERIFICATION_MISMATCH.toLowerCase())) {
+        if (normalizedDescription.contains(REASON_CLAIMS_VERIFICATION_MISMATCH)) {
             return ErrorMessage.ERROR_CLAIMS_VERIFICATION_MISMATCH;
         }
         if (ERROR_FAILED_TO_VERIFY_USER.equalsIgnoreCase(normalizedError)) {

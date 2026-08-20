@@ -42,7 +42,7 @@ public class DaonCallbackErrorsTest {
                 // Daon sends the reason as a JSON array; matched as a substring.
                 {"FailedToVerifyUser", "[\"CLAIMS_VERIFICATION_MISMATCH\"]",
                         ErrorMessage.ERROR_CLAIMS_VERIFICATION_MISMATCH},
-                {null, "claims_verification_mismatch",
+                {null, "[\"CLAIMS_VERIFICATION_MISMATCH\"]",
                         ErrorMessage.ERROR_CLAIMS_VERIFICATION_MISMATCH},
                 {"server_error", null, ErrorMessage.ERROR_VERIFICATION_NOT_COMPLETED},
                 {null, null, ErrorMessage.ERROR_VERIFICATION_NOT_COMPLETED},
