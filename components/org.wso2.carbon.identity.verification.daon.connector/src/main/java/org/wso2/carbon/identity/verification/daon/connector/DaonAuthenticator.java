@@ -580,7 +580,8 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * the account already holds, keyed by Daon claim name.
      *
      * <p>Values come from the claims the preceding step already resolved for the user where present, and
-     * from the user store for the rest. A value that cannot survive the query string as-is is dropped
+     * from the user store for the rest — read from the <b>user's</b> tenant, the same one the association
+     * is keyed on (see {@link #resolveUserTenantDomain}). A value that cannot survive the query string as-is is dropped
      * rather than sent broken: {@link OpenIDConnectAuthenticator} splits the additional query parameters on
      * {@code &} and {@code =} before re-encoding them, so a value containing either would truncate the
      * {@code claims} parameter. Dropping one cannot weaken the check silently — the caller still requires a
@@ -605,7 +606,11 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             }
         }
         if (!unresolved.isEmpty()) {
-            localValues.putAll(readStoredClaims(context.getTenantDomain(), qualifiedUsername, unresolved));
+            // The user's own tenant, not the context's — see resolveUserTenantDomain. Reading the profile
+            // from the service provider's tenant finds nothing in a B2B/organization login, and the
+            // enrolment then fails DAON-65023 as though the attributes were unmapped.
+            localValues.putAll(readStoredClaims(resolveUserTenantDomain(authenticatedUser, context),
+                    qualifiedUsername, unresolved));
         }
 
         Map<String, String> valuesByDaonClaimName = new HashMap<>();
