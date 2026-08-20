@@ -36,6 +36,7 @@ import org.wso2.carbon.identity.application.common.model.User;
 import org.wso2.carbon.identity.application.common.util.IdentityApplicationConstants;
 import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonConstants;
+import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants;
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonServerException;
@@ -80,7 +81,9 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
     private static final Log LOG = LogFactory.getLog(DaonAuthenticator.class);
 
     /**
-     * Heading shown above a Daon failure on the retry page.
+     * Fallback heading for a Daon failure on the retry page, used for the errors that carry no i18n key of
+     * their own (the administrator-facing ones). Errors that have one send it instead — see
+     * {@link #resolveRetryPageStatus}.
      */
     private static final String RETRY_PAGE_STATUS_KEY = "unable.to.proceed";
 
@@ -189,7 +192,7 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         String qualifiedUsername = resolveQualifiedUsername(authenticatedUser);
         if (StringUtils.isBlank(qualifiedUsername)) {
             // Nothing to enrol, and nothing for the callback to bind the verified identity to.
-            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
                     "the authenticating user could not be resolved at the login step"));
             failRequest(request, response, context, ErrorMessage.ERROR_USER_NOT_ENROLLED);
             return;
@@ -327,7 +330,7 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
         }
         String daonIdpName = resolveDaonIdpName(context);
         if (StringUtils.isBlank(daonIdpName)) {
-            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
                     "the Daon IDP name could not be resolved at the enrolment callback"));
             throw failCallback(context, ErrorMessage.ERROR_CREATING_FED_ASSOCIATION);
         }
@@ -764,6 +767,12 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * to the application. This is what carries the {@code DAON-} code out of the server, since an
      * {@link AuthenticationFailedException}'s own code is dropped before the portal renders.</p>
      *
+     * <p>That applies only where the step <b>throws</b>: a script-driven request failure, and every
+     * callback failure ({@link #failCallback}). On the retry-page leg of {@link #failRequest} the redirect
+     * ends the flow at the retry page, so no authentication result is ever built, nothing reads these
+     * properties, and the application is not redirected to at all. On that leg the code reaches the server
+     * log only — what the user sees is the i18n wording {@link #failRequest} sends.</p>
+     *
      * <p>Nothing is named for the login page's error banner. When the framework sends the user back to a
      * multi-option step, that banner's text comes from {@code authFailureMsg}, which the authentication
      * portal renders only for keys in its own resource bundle — it carries no identity verification entry,
@@ -795,12 +804,21 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
      * <p>With an adaptive script attached the step is failed, because only a failed step reaches an
      * {@code onFail} handler — that is what lets a script route a not-enrolled user into enrolment.
      * Without one, nothing would render the reason: the framework drops the exception's code and shows a
-     * generic message, so the message is put on the retry page directly. Both paths also record the error
-     * on the context for the application.</p>
+     * generic message, so the wording is put on the retry page directly. Both paths record the error on the
+     * context, but only the script-driven one has anything that reads it: this leg's redirect ends the flow
+     * at the retry page, so no authentication result is built and the application is never redirected to.
+     * The {@code DAON-} code therefore reaches the server log only.</p>
      *
-     * <p>The status is an i18n key the retry page resolves; the message is passed through as plain text.
-     * {@code AuthenticationEndpointUtil.customi18n} returns the string unchanged (HTML-escaped) when it is
-     * not a bundle key, so Daon messages need no resource-bundle entries of their own.</p>
+     * <p>The retry page's two slots carry the same pair of {@code {{key}}} i18n tokens the registration and
+     * recovery flows send — {@link DaonErrorConstants.ErrorMessage#getUserMessageToken()} as the status and
+     * {@link DaonErrorConstants.ErrorMessage#getUserDescriptionToken()} as the status message — so the
+     * login step's wording is localized from the same bundle entries as the flow portal's.</p>
+     *
+     * <p>Both slots go through {@code AuthenticationEndpointUtil.customi18n}, which is a plain
+     * {@code ResourceBundle.getString} that returns its input HTML-escaped when the key is missing and does
+     * <b>not</b> strip the {@code {{ }}} wrapping. The authentication endpoint's bundle therefore needs a
+     * {@code {{<i18nKey>.message}}} and {@code {{<i18nKey>.description}}} entry — braces included — for
+     * each keyed error, or the token renders literally.</p>
      *
      * <p>Only safe on the request-building leg. On the callback leg the parent treats a normal return as a
      * successful authentication, so failures there must throw — see {@link #failCallback}.</p>
@@ -814,13 +832,27 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
             throw DaonExceptionMgt.handleAuthFailedException(error);
         }
         try {
-            FrameworkUtils.sendToRetryPage(request, response, context, RETRY_PAGE_STATUS_KEY,
-                    error.getMessage());
+            FrameworkUtils.sendToRetryPage(request, response, context, resolveRetryPageStatus(error),
+                    DaonExceptionMgt.userDescription(error));
             context.setCurrentAuthenticator(getName());
         } catch (IOException e) {
             LOG.error(DaonExceptionMgt.errorLog(error), e);
             throw DaonExceptionMgt.handleAuthFailedException(error, e);
         }
+    }
+
+    /**
+     * The retry page status for an error: its own i18n message token when it has one, otherwise the generic
+     * heading.
+     *
+     * <p>The fallback is not cosmetic. The keyless errors are the administrator-facing ones, and
+     * {@link DaonExceptionMgt#userDescription} already falls back to their plain message for the status
+     * message slot — sending that same sentence as the status too would render it twice, as both the
+     * heading and the body.</p>
+     */
+    private String resolveRetryPageStatus(ErrorMessage error) {
+
+        return error.getUserMessageToken() != null ? error.getUserMessageToken() : RETRY_PAGE_STATUS_KEY;
     }
 
     /**

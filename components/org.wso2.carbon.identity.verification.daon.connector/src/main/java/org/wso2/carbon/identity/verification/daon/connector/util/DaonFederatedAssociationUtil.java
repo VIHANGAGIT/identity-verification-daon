@@ -145,17 +145,19 @@ public final class DaonFederatedAssociationUtil {
     /**
      * Creates a federated association between the local user and the Daon IDP.
      *
-     * <p>Never throws: a failure — most commonly that the association already exists, which is the normal
-     * outcome of a re-verification — is logged with its code. The return value tells a caller that needs
-     * the association to exist (an enrolment) whether it was actually written, while callers for which an
-     * existing association is a fine outcome can ignore it.</p>
+     * <p>Never throws: the failure — most commonly that the store rejected the write because the Daon
+     * identity is already associated — is logged with its code and reported through the return value, so
+     * the caller decides how to react. Both callers treat a failed write as fatal (the login step fails
+     * the authentication, the registration listener fails the flow), so a caller that can legitimately
+     * tolerate an existing association must rule that case out first — see
+     * {@link #getAssociatedDaonSubject(User, String)}.</p>
      *
      * @return {@code true} if the association was created.
      */
     public static boolean createAssociation(User user, String idpName, String daonSubject) {
 
         if (user == null || StringUtils.isBlank(idpName) || StringUtils.isBlank(daonSubject)) {
-            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_SKIPPING_FED_ASSOCIATION,
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
                     "the user, the IDP name or the Daon subject is missing"));
             return false;
         }

@@ -33,16 +33,18 @@ public class DaonConstants {
     private DaonConstants() {
     }
 
-    public static final String DAON = "DAON";
-
     /*
      * Daon-specific parameters.
      */
 
-    /** OIDC login_hint query parameter used to pre-identify the user on the Daon authorization endpoint. */
+    /**
+     * OIDC login_hint query parameter used to pre-identify the user on the Daon authorization endpoint.
+     */
     public static final String LOGIN_HINT = "login_hint";
 
-    /** OIDC request parameter carrying the selected Daon process definition. */
+    /**
+     * OIDC request parameter carrying the selected Daon process definition.
+     */
     public static final String ACR_VALUES_PARAM = "acr_values";
 
     /**
@@ -215,78 +217,21 @@ public class DaonConstants {
     public static final String DAON_FED_IDP_NAME = "daon_fed_idp_name";
     public static final String DAON_FED_SUBJECT = "daon_fed_subject";
 
-    /** Flow type strings returned by {@code FlowExecutionContext.getFlowType()}. */
+    /**
+     * Flow type strings returned by {@code FlowExecutionContext.getFlowType()}.
+     */
     public static final String FLOW_TYPE_PASSWORD_RECOVERY = "PASSWORD_RECOVERY";
     public static final String FLOW_TYPE_REGISTRATION = "REGISTRATION";
     public static final String FLOW_TYPE_INVITED_USER_REGISTRATION = "INVITED_USER_REGISTRATION";
 
-    // Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
+    /**
+     * Fallback claim dialect URI for Daon claims not mapped to a WSO2 local claim.
+     */
     public static final String CLAIM_DIALECT_URI = "http://wso2.org/daon/claims";
 
-    public static final String USER_ID_CLAIM = "http://wso2.org/claims/userid";
-
-    // WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
+    /*
+     * WSO2 standard name claim URIs that may be matched against Daon's combined family_name_and_given_name.
+     */
     public static final String WSO2_LASTNAME_CLAIM_URI = "http://wso2.org/claims/lastname";
     public static final String WSO2_GIVENNAME_CLAIM_URI = "http://wso2.org/claims/givenname";
-
-    /**
-     * Enum representing the various statuses that a verification flow can transition through.
-     */
-    public enum VerificationFlowStatus {
-
-        INITIATED("INITIATED"),
-        COMPLETED("COMPLETED"),
-        REINITIATED("REINITIATED");
-
-        private final String status;
-
-        VerificationFlowStatus(String status) {
-            this.status = status;
-        }
-
-        public String getStatus() {
-            return status;
-        }
-
-        public static VerificationFlowStatus fromString(String status) throws DaonClientException {
-
-            for (VerificationFlowStatus flowStatus : VerificationFlowStatus.values()) {
-                if (flowStatus.status.equalsIgnoreCase(status)) {
-                    return flowStatus;
-                }
-            }
-            throw DaonExceptionMgt.handleClientException(
-                    ErrorMessage.ERROR_INVALID_VERIFICATION_FLOW_STATUS, status);
-        }
-
-        @Override
-        public String toString() {
-            return this.status;
-        }
-    }
-
-    /**
-     * Enum representing the verification result for an identity claim returned by Daon.
-     */
-    public enum DaonVerificationStatus {
-
-        VERIFIED("VERIFIED"),
-        FAILED("FAILED"),
-        MISMATCH("MISMATCH");
-
-        private final String status;
-
-        DaonVerificationStatus(String status) {
-            this.status = status;
-        }
-
-        public String getStatus() {
-            return status;
-        }
-
-        @Override
-        public String toString() {
-            return this.status;
-        }
-    }
 }

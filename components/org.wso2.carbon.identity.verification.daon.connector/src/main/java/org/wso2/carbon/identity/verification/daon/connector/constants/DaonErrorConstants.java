@@ -201,10 +201,16 @@ public class DaonErrorConstants {
                 "Error creating the Daon federated association for IDP: %s (the association may "
                         + "already exist)."),
 
-        ERROR_SKIPPING_FED_ASSOCIATION("65014",
-                "The Daon federated association was not persisted.",
-                "Skipped persisting the Daon federated association because %s; the user will be "
-                        + "treated as not enrolled at the next login."),
+        /**
+         * The Daon verification could not be recorded against the user.
+         *
+         * <p>Raised, not just logged: an enrolment that is not recorded leaves the account looking
+         * not-enrolled at the next login, so both the flow path and the login path fail rather than
+         * report success.</p>
+         */
+        ERROR_PERSISTING_FED_ASSOCIATION("65014",
+                "The Daon verification could not be recorded for the user.",
+                "The Daon federated association could not be persisted because %s."),
 
         ERROR_READING_USER_CLAIMS("65015",
                 "Could not read the user's stored claims.",

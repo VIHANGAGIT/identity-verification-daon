@@ -419,11 +419,23 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         // The association is keyed on the Daon IDP name — the self-contained Identity Verifier
         // connection's own name for enrolment — so it is shared with every login connection referencing
         // it (which resolve the same name via daon_idp_id).
-        String daonIdpName = resolveDaonIdpName(flowExecutionContext);
-        if (StringUtils.isNotBlank(preferredUsername) && StringUtils.isNotBlank(daonIdpName)) {
-            flowExecutionContext.setProperty(DAON_FED_IDP_NAME, daonIdpName);
-            flowExecutionContext.setProperty(DAON_FED_SUBJECT, preferredUsername);
+        //
+        // Every flow reaching here is an enrolment (password recovery returned above), and the association
+        // is the only record of it. Fail rather than let the flow complete without one: the registration
+        // would report success and the user would be told they are not enrolled at their first login,
+        // with no way back to an enrolment.
+        if (StringUtils.isBlank(preferredUsername)) {
+            throw DaonExceptionMgt.handleFlowServerException(
+                    ErrorMessage.ERROR_ENROLMENT_IDENTITY_NOT_RETURNED);
         }
+        String daonIdpName = resolveDaonIdpName(flowExecutionContext);
+        if (StringUtils.isBlank(daonIdpName)) {
+            throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
+                    "the Daon Verifier name could not be resolved for the " + flowExecutionContext.getFlowType()
+                            + " flow");
+        }
+        flowExecutionContext.setProperty(DAON_FED_IDP_NAME, daonIdpName);
+        flowExecutionContext.setProperty(DAON_FED_SUBJECT, preferredUsername);
         return userAttributes;
     }
 
