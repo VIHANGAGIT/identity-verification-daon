@@ -280,7 +280,13 @@ public class DaonErrorConstants {
                         + "Verifier ID configured on this connection.",
                 "The connection referenced by resource id %s carries no Daon federated authenticator "
                         + "configuration, so it is not a Daon connection and its OIDC client configuration "
-                        + "must not be used to build a Daon verification request.");
+                        + "must not be used to build a Daon verification request."),
+
+        ERROR_RESOLVING_USER_STORE_DOMAIN("65028",
+                "Could not resolve the user's userstore domain.",
+                "Error resolving the userstore domain of the flow user by user id; the Daon association "
+                        + "will be keyed on the unqualified username, which resolves to the primary "
+                        + "userstore.");
 
         private final String code;
         private final String message;

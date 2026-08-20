@@ -633,7 +633,11 @@ public class DaonExecutor extends OpenIDConnectExecutor {
         if (context.getFlowUser() == null) {
             return null;
         }
-        String username = context.getFlowUser().getUsername();
+        // Domain-qualified, so the lookup uses the same key the enrolment wrote the association under —
+        // the flow user's own username is not qualified, and an unqualified one resolves to the primary
+        // userstore whatever store the user is really in.
+        String username = DaonFederatedAssociationUtil.resolveQualifiedUsername(context.getFlowUser(),
+                context.getTenantDomain());
         if (StringUtils.isBlank(username)) {
             return null;
         }

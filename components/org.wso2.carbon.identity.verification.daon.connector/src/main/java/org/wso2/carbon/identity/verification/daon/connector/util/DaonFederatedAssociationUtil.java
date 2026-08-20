@@ -22,6 +22,8 @@ import org.apache.commons.lang.StringUtils;
 import org.apache.commons.logging.Log;
 import org.apache.commons.logging.LogFactory;
 import org.wso2.carbon.identity.application.common.model.User;
+import org.wso2.carbon.identity.core.util.IdentityTenantUtil;
+import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.FederatedAssociationManager;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerClientException;
 import org.wso2.carbon.identity.user.profile.mgt.association.federation.exception.FederatedAssociationManagerException;
@@ -29,6 +31,10 @@ import org.wso2.carbon.identity.user.profile.mgt.association.federation.model.Fe
 import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorConstants.ErrorMessage;
 import org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgt;
 import org.wso2.carbon.identity.verification.daon.connector.internal.DaonConnectorDataHolder;
+import org.wso2.carbon.user.api.UserStoreException;
+import org.wso2.carbon.user.api.UserStoreManager;
+import org.wso2.carbon.user.core.UniqueIDUserStoreManager;
+import org.wso2.carbon.user.core.UserCoreConstants;
 import org.wso2.carbon.user.core.util.UserCoreUtil;
 
 /**
@@ -47,6 +53,15 @@ public final class DaonFederatedAssociationUtil {
 
     /**
      * Builds an application-common {@link User} from a (possibly domain-qualified) username and tenant.
+     *
+     * <p>The association is stored against the (username, userstore domain, tenant) triple verbatim — both
+     * {@code FederatedAssociationManagerImpl.createFederatedAssociation} and
+     * {@code getFederatedAssociationsOfUser} pass {@code getUserStoreDomain()} and {@code getUserName()}
+     * straight to the DAO — so the domain is part of the key and every caller has to arrive at the same
+     * one. An <b>unqualified</b> username does not: {@link UserCoreUtil#extractDomainFromName} answers
+     * with the bootstrap/primary domain for a name that carries none, whatever userstore the user is
+     * really in. Callers holding a bare username must resolve the domain first — see
+     * {@link #resolveQualifiedUsername(FlowUser, String)} for the flow path.</p>
      */
     public static User buildUser(String username, String tenantDomain) {
 
@@ -55,6 +70,85 @@ public final class DaonFederatedAssociationUtil {
         user.setUserStoreDomain(UserCoreUtil.extractDomainFromName(username));
         user.setTenantDomain(tenantDomain);
         return user;
+    }
+
+    /**
+     * The flow user's <b>domain-qualified</b> username, for building the {@link User} a flow's Daon
+     * association is keyed on.
+     *
+     * <p>{@code FlowUser.getUsername()} is whatever the flow collected — the username claim, or an email
+     * address — and is not domain-qualified by the flow engine. Handing it to
+     * {@link #buildUser(String, String)} as-is keys the association on the primary domain regardless of
+     * the userstore the user actually lives in, while the login step keys on the real domain (it rebuilds
+     * the name from {@code AuthenticatedUser.getUserStoreDomain()}). For a user outside the primary
+     * userstore the two never meet:</p>
+     * <ul>
+     *   <li>on the enrolment flows the write fails, because the association store checks the user exists
+     *       under the domain it was given — so a registration that has already verified with Daon and
+     *       provisioned the user ends on {@code DAON-65013};</li>
+     *   <li>on password recovery the read fails the same way and is caught as "no association", so an
+     *       enrolled user is turned away with {@code DAON-60001}.</li>
+     * </ul>
+     *
+     * <p>The domain is taken from the flow user when it carries one, and otherwise resolved from the
+     * userstore by user id. Falling back to the bare username keeps the previous behaviour for the
+     * primary-userstore case, where the two agree anyway.</p>
+     *
+     * @param flowUser     the flow user; may be {@code null}.
+     * @param tenantDomain tenant the user lives in.
+     * @return the qualified username, or {@code null} when the flow user carries no username at all.
+     */
+    public static String resolveQualifiedUsername(FlowUser flowUser, String tenantDomain) {
+
+        if (flowUser == null) {
+            return null;
+        }
+        String username = flowUser.getUsername();
+        if (StringUtils.isBlank(username)) {
+            return null;
+        }
+        if (username.contains(UserCoreConstants.DOMAIN_SEPARATOR)) {
+            return username;
+        }
+        if (StringUtils.isNotBlank(flowUser.getUserStoreDomain())) {
+            return flowUser.getUserStoreDomain() + UserCoreConstants.DOMAIN_SEPARATOR + username;
+        }
+        String resolved = resolveDomainQualifiedUsername(flowUser.getUserId(), tenantDomain);
+        return resolved != null ? resolved : username;
+    }
+
+    /**
+     * Asks the userstore for the domain-qualified name of the user with the given id.
+     *
+     * <p>{@code getDomainQualifiedUsername()} is used rather than
+     * {@code AbstractUserStoreManager.getUserNameFromUserID}, which is only qualified on one of its two
+     * branches.</p>
+     *
+     * @return the qualified username, or {@code null} when it cannot be resolved — the caller then keeps
+     *         the unqualified name, which is what it would have used anyway.
+     */
+    private static String resolveDomainQualifiedUsername(String userId, String tenantDomain) {
+
+        if (StringUtils.isBlank(userId) || StringUtils.isBlank(tenantDomain)
+                || DaonConnectorDataHolder.getRealmService() == null) {
+            return null;
+        }
+        try {
+            int tenantId = IdentityTenantUtil.getTenantId(tenantDomain);
+            UserStoreManager userStoreManager = DaonConnectorDataHolder.getRealmService()
+                    .getTenantUserRealm(tenantId).getUserStoreManager();
+            if (!(userStoreManager instanceof UniqueIDUserStoreManager)) {
+                return null;
+            }
+            org.wso2.carbon.user.core.common.User storeUser =
+                    ((UniqueIDUserStoreManager) userStoreManager).getUserWithID(userId, null, null);
+            if (storeUser != null && StringUtils.isNotBlank(storeUser.getDomainQualifiedUsername())) {
+                return storeUser.getDomainQualifiedUsername();
+            }
+        } catch (UserStoreException e) {
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_USER_STORE_DOMAIN), e);
+        }
+        return null;
     }
 
     /**

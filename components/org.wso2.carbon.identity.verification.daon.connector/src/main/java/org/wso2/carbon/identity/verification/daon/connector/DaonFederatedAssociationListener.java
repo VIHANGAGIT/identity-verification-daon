@@ -97,7 +97,10 @@ public class DaonFederatedAssociationListener extends AbstractFlowExecutionListe
             throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
                     "the completed flow has no flow user");
         }
-        String username = context.getFlowUser().getUsername();
+        // Domain-qualified, so the association is keyed on the userstore the user actually lives in — the
+        // same one the login step reads it back with. The flow user's own username is not qualified.
+        String username = DaonFederatedAssociationUtil.resolveQualifiedUsername(context.getFlowUser(),
+                context.getTenantDomain());
         if (StringUtils.isBlank(username)) {
             throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_PERSISTING_FED_ASSOCIATION,
                     "the flow user has no username");
