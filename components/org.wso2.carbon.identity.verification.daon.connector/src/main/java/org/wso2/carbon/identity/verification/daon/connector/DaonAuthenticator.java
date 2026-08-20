@@ -656,7 +656,8 @@ public class DaonAuthenticator extends OpenIDConnectAuthenticator
                 }
             }
         } catch (UserStoreException e) {
-            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_READING_USER_CLAIMS_AT_LOGIN), e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_READING_USER_CLAIMS,
+                    "the user being enrolled at the login step"), e);
         }
         return values;
     }

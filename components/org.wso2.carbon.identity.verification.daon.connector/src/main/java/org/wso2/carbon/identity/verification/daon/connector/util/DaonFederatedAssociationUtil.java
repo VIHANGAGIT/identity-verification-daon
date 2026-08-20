@@ -265,7 +265,11 @@ public final class DaonFederatedAssociationUtil {
             manager.createFederatedAssociation(user, idpName, daonSubject);
             return true;
         } catch (FederatedAssociationManagerException e) {
-            // Typically already associated (re-verification) — safe to ignore.
+            // Not ignorable: both callers treat a failed write as fatal, so this is logged with its code
+            // and reported through the return value rather than swallowed. The store rejects a write when
+            // the Daon subject is already associated on this IDP, or when the user does not exist under
+            // the (username, userstore domain, tenant) it was given — so the caller has to have named the
+            // user the same way the read side does.
             LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_CREATING_FED_ASSOCIATION, idpName), e);
             return false;
         }

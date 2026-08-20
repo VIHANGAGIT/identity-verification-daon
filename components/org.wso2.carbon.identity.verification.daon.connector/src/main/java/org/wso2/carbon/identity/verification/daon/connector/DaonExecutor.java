@@ -375,8 +375,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             throw DaonExceptionMgt.toFlowServerException(e);
         }
 
-        String subject = idTokenPayload.optString(DaonConstants.JWT_SUBJECT_CLAIM, null);
-        if (StringUtils.isBlank(subject)) {
+        if (StringUtils.isBlank(idTokenPayload.optString(DaonConstants.JWT_SUBJECT_CLAIM, null))) {
             throw DaonExceptionMgt.handleFlowServerException(ErrorMessage.ERROR_SUBJECT_CLAIM_NOT_FOUND,
                     flowExecutionContext.getFlowType());
         }
@@ -389,16 +388,18 @@ public class DaonExecutor extends OpenIDConnectExecutor {
             reverseClaimMap.put(entry.getValue(), entry.getKey()); // Daon name -> WSO2 URI
         }
 
+        // Only the claims the connection maps: an unmapped Daon claim has no local claim to be written to,
+        // and nothing downstream consumes one.
         Map<String, String> extractedClaims = new HashMap<>();
-        for (Object keyObj : daonClaims.keySet()) {
-            String key = (String) keyObj;
-            String claimValue = DaonJwtUtil.resolveClaimValue(key, daonClaims.get(key));
-            if (claimValue == null) {
+        for (String key : daonClaims.keySet()) {
+            String claimUri = reverseClaimMap.get(key);
+            if (claimUri == null) {
                 continue;
             }
-            String claimUri = reverseClaimMap.getOrDefault(key,
-                    DaonConstants.CLAIM_DIALECT_URI + "/" + key);
-            extractedClaims.put(claimUri, claimValue);
+            String claimValue = DaonJwtUtil.resolveClaimValue(key, daonClaims.get(key));
+            if (claimValue != null) {
+                extractedClaims.put(claimUri, claimValue);
+            }
         }
 
         String preferredUsername = idTokenPayload.optString(DaonConstants.JWT_PREFERRED_USERNAME_CLAIM, null);
@@ -490,7 +491,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
      * Builds the subset of Daon-verified claims to write to a self-registering user's profile.
      *
      * @param daonClaims       the verified claims object from the ID token.
-     * @param extractedClaims  the Daon claims already resolved to local claim URIs.
+     * @param extractedClaims  the Daon claims already resolved to local claim URIs — only the mapped ones
+     *                         reach here, so all of them belong on the profile.
      * @param daonToLocalClaim Daon claim name -&gt; WSO2 local claim URI, from the connection's attribute
      *                         mappings. Needed because the split name parts have to land on the same
      *                         claims the connection maps the name claims to.
@@ -498,12 +500,7 @@ public class DaonExecutor extends OpenIDConnectExecutor {
     private Map<String, Object> buildProfileClaims(JSONObject daonClaims, Map<String, String> extractedClaims,
                                                    Map<String, String> daonToLocalClaim) {
 
-        Map<String, Object> profileClaims = new HashMap<>();
-        for (Map.Entry<String, String> entry : extractedClaims.entrySet()) {
-            if (!entry.getKey().startsWith(DaonConstants.CLAIM_DIALECT_URI)) {
-                profileClaims.put(entry.getKey(), entry.getValue());
-            }
-        }
+        Map<String, Object> profileClaims = new HashMap<>(extractedClaims);
         populateNameClaims(daonClaims, profileClaims, daonToLocalClaim);
         return profileClaims;
     }
@@ -619,7 +616,8 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 }
             }
         } catch (UserStoreException e) {
-            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_READING_USER_CLAIMS), e);
+            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_READING_USER_CLAIMS,
+                    "the invited user"), e);
         }
         return resolved;
     }

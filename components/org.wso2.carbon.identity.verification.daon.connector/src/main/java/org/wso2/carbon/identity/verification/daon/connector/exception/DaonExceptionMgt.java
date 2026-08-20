@@ -38,7 +38,11 @@ import org.wso2.carbon.identity.verification.daon.connector.constants.DaonErrorC
  *   <li><b>Login path</b> — {@link AuthenticationFailedException}. The framework drops the error code
  *       before it reaches the portal, so there the code is a diagnostic aid in the server log; the
  *       user-facing channel is the login retry page.</li>
- *   <li><b>Internal</b> — {@link DaonClientException} / {@link DaonServerException}.</li>
+ *   <li><b>Internal</b> — {@link DaonServerException}, raised by the utility classes and re-wrapped for
+ *       whichever path called them (see {@link #toFlowServerException}). There is deliberately no client
+ *       counterpart: every internal failure the connector raises is a server-side one, and the client
+ *       errors it reports are all built directly as flow-engine or authentication-framework
+ *       exceptions.</li>
  * </ul>
  *
  * <p>For failures that are deliberately swallowed (the connector degrades rather than failing the flow),
@@ -73,17 +77,6 @@ public class DaonExceptionMgt {
 
     // Internal exceptions.
 
-    public static DaonClientException handleClientException(ErrorMessage error, Object... data) {
-
-        return new DaonClientException(error.getCode(), describe(error, data));
-    }
-
-    public static DaonClientException handleClientException(ErrorMessage error, Throwable cause,
-                                                            Object... data) {
-
-        return new DaonClientException(error.getCode(), describe(error, data), cause);
-    }
-
     public static DaonServerException handleServerException(ErrorMessage error, Object... data) {
 
         return new DaonServerException(error.getCode(), describe(error, data));
@@ -111,12 +104,6 @@ public class DaonExceptionMgt {
         return new FlowEngineClientException(error.getCode(), userMessage(error), userDescription(error));
     }
 
-    public static FlowEngineClientException handleFlowClientException(ErrorMessage error, Throwable cause) {
-
-        return new FlowEngineClientException(error.getCode(), userMessage(error), userDescription(error),
-                cause);
-    }
-
     /**
      * The heading the flow portal should render for an error, as the token that marks it user-facing.
      */
@@ -137,13 +124,6 @@ public class DaonExceptionMgt {
     public static FlowEngineServerException handleFlowServerException(ErrorMessage error, Object... data) {
 
         return new FlowEngineServerException(error.getCode(), error.getMessage(), describe(error, data));
-    }
-
-    public static FlowEngineServerException handleFlowServerException(ErrorMessage error, Throwable cause,
-                                                                      Object... data) {
-
-        return new FlowEngineServerException(error.getCode(), error.getMessage(), describe(error, data),
-                cause);
     }
 
     /**

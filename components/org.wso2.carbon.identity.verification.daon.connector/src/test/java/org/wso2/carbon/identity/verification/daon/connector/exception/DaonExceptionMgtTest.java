@@ -129,16 +129,6 @@ public class DaonExceptionMgtTest {
     }
 
     @Test
-    public void testHandleClientException() {
-
-        DaonClientException e = DaonExceptionMgt.handleClientException(
-                ErrorMessage.ERROR_INVALID_VERIFICATION_FLOW_STATUS, "BOGUS");
-
-        assertEquals(e.getErrorCode(), "DAON-60007");
-        assertTrue(e.getMessage().contains("BOGUS"), e.getMessage());
-    }
-
-    @Test
     public void testHandleFlowServerException() {
 
         FlowEngineServerException e = DaonExceptionMgt.handleFlowServerException(

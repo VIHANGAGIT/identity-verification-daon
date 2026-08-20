@@ -31,52 +31,6 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.apache.cxf</groupId>
-                <artifactId>cxf-rt-frontend-jaxrs</artifactId>
-                <version>${cxf-bundle.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.apache.cxf</groupId>
-                <artifactId>cxf-rt-rs-service-description</artifactId>
-                <version>${cxf-bundle.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>javax.ws.rs</groupId>
-                <artifactId>javax.ws.rs-api</artifactId>
-                <version>${javax.ws.rs-api.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>io.swagger</groupId>
-                <artifactId>swagger-jaxrs</artifactId>
-                <version>${swagger-jaxrs.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-databind</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-annotations</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.core</groupId>
-                        <artifactId>jackson-core</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.fasterxml.jackson.dataformat</groupId>
-                        <artifactId>jackson-dataformat-yaml</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>javax.ws.rs</groupId>
-                        <artifactId>jsr311-api</artifactId>
-                    </exclusion>
-                    <exclusion>
-                        <groupId>com.google.guava</groupId>
-                        <artifactId>guava</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
                 <groupId>commons-lang.wso2</groupId>
                 <artifactId>commons-lang</artifactId>
                 <version>${commons-lang.wso2.version}</version>
@@ -97,11 +51,6 @@
                 <version>${jackson-core.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.jaxrs</groupId>
-                <artifactId>jackson-jaxrs-json-provider</artifactId>
-                <version>${jackson-jaxrs-json-provider.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.slf4j</groupId>
                 <artifactId>slf4j-api</artifactId>
                 <version>${slf4j.version}</version>
@@ -111,9 +60,17 @@
                 <artifactId>org.wso2.carbon.identity.application.authenticator.oidc</artifactId>
                 <version>5.12.36</version>
             </dependency>
+            <!--
+            The artifact that actually reaches the classpath, transitively via the OIDC authenticator.
+            Pinned to the version that resolves today, and declared directly by the connector module
+            because it compiles against org.apache.oltu.oauth2.client.response.OAuthClientResponse.
+            Note the artifactId: this is `oltu`, not the `oltu-jdk21` that used to be managed here —
+            that coordinate never appeared in the resolved tree, so the pin had no effect, and declaring
+            it would have put two overlapping oltu jars on the classpath.
+            -->
             <dependency>
                 <groupId>org.wso2.orbit.org.apache.oltu.oauth2</groupId>
-                <artifactId>oltu-jdk21</artifactId>
+                <artifactId>oltu</artifactId>
                 <version>${oltu.version}</version>
             </dependency>
             <dependency>
@@ -157,11 +114,6 @@
                 <version>${org.eclipse.osgi.version}</version>
             </dependency>
             <dependency>
-                <groupId>org.osgi</groupId>
-                <artifactId>org.osgi.core</artifactId>
-                <version>${org.osgi.version}</version>
-            </dependency>
-            <dependency>
                 <groupId>org.json</groupId>
                 <artifactId>json</artifactId>
                 <version>${org.json.version}</version>
@@ -172,47 +124,9 @@
                 <version>${jackson-databind.version}</version>
             </dependency>
             <dependency>
-                <groupId>com.fasterxml.jackson.dataformat</groupId>
-                <artifactId>jackson-dataformat-xml</artifactId>
-                <version>${jackson-dataformat-xml.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.hibernate.validator</groupId>
-                <artifactId>hibernate-validator</artifactId>
-                <version>${hibernate-validator.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.jboss.logging</groupId>
-                        <artifactId>jboss-logging</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
                 <groupId>org.apache.commons</groupId>
                 <artifactId>commons-collections4</artifactId>
                 <version>${apache.common.collections4.version}</version>
-            </dependency>
-            <dependency>
-                <groupId>org.wso2.carbon.extension.identity.verification</groupId>
-                <artifactId>org.wso2.carbon.extension.identity.verification.provider</artifactId>
-                <version>${identity.verification.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.powermock</groupId>
-                        <artifactId>powermock-api-mockito2</artifactId>
-                    </exclusion>
-                </exclusions>
-            </dependency>
-            <dependency>
-                <groupId>org.wso2.carbon.extension.identity.verification</groupId>
-                <artifactId>org.wso2.carbon.extension.identity.verification.mgt</artifactId>
-                <version>${identity.verification.version}</version>
-                <exclusions>
-                    <exclusion>
-                        <groupId>org.powermock</groupId>
-                        <artifactId>powermock-api-mockito2</artifactId>
-                    </exclusion>
-                </exclusions>
             </dependency>
             <dependency>
                 <groupId>org.wso2.orbit.org.apache.httpcomponents</groupId>
@@ -384,9 +298,6 @@
         <commons-lang.wso2.version>2.6.0.wso2v1</commons-lang.wso2.version>
         <commons-logging.version>1.2</commons-logging.version>
         <jackson-core.version>2.13.2</jackson-core.version>
-        <jackson-jaxrs-json-provider.version>2.13.2</jackson-jaxrs-json-provider.version>
-        <cxf-bundle.version>3.5.0</cxf-bundle.version>
-        <javax.ws.rs-api.version>2.1.1</javax.ws.rs-api.version>
         <slf4j.version>1.7.22</slf4j.version>
         <carbon.identity.framework.version>7.11.168</carbon.identity.framework.version>
         <identity.organization.management.service.version>1.1.60</identity.organization.management.service.version>
@@ -394,32 +305,23 @@
         <org.eclipse.osgi.services.version>3.3.100.v20130513-1956</org.eclipse.osgi.services.version>
         <org.eclipse.osgi.version>3.9.1.v20130814-1242</org.eclipse.osgi.version>
         <jackson-databind.version>2.13.4.2</jackson-databind.version>
-        <jackson-dataformat-xml.version>2.13.2</jackson-dataformat-xml.version>
-        <hibernate-validator.version>6.0.17.Final</hibernate-validator.version>
         <httpcomponents-httpclient.wso2.version>4.5.13.wso2v1</httpcomponents-httpclient.wso2.version>
         <apache.common.collections4.version>4.1</apache.common.collections4.version>
         <org.json.version>20230227</org.json.version>
-        <org.osgi.version>7.0.0</org.osgi.version>
         <carbon.kernel.version>4.10.16</carbon.kernel.version>
         <commons-lang3.version>3.10</commons-lang3.version>
-        <identity.verification.version>1.0.12</identity.verification.version>
-        <swagger-jaxrs.version>1.6.2</swagger-jaxrs.version>
-        <oltu.version>1.0.0.wso2v1</oltu.version>
+        <oltu.version>1.0.0.wso2v3</oltu.version>
 
         <osgi.framework.imp.pkg.version.range>[1.7.0, 2.0.0)</osgi.framework.imp.pkg.version.range>
         <osgi.service.component.imp.pkg.version.range>[1.2.0, 2.0.0)</osgi.service.component.imp.pkg.version.range>
         <carbon.kernel.package.import.version.range>[4.6.0, 5.0.0)</carbon.kernel.package.import.version.range>
         <commons-lang.wso2.osgi.version.range>[2.6.0,3.0.0)</commons-lang.wso2.osgi.version.range>
         <import.package.version.commons.logging>[1.2.0,2.0.0)</import.package.version.commons.logging>
-        <httpcore.version.osgi.import.range>[4.4, 5.0)</httpcore.version.osgi.import.range>
         <json.wso2.version.range>[3.0.0.wso2v1, 4.0.0)</json.wso2.version.range>
         <carbon.identity.package.import.version.range>[5.14.67, 8.0.0)</carbon.identity.package.import.version.range>
         <carbon.user.api.imp.pkg.version.range>[1.0.1, 2.0.0)</carbon.user.api.imp.pkg.version.range>
-        <identity.verification.package.version.range>[1.0.0, 2.0.0)</identity.verification.package.version.range>
         <carbon.identity.application.authentication.framework.imp.pkg.version.range>[5.0.0, 8.0.0)
         </carbon.identity.application.authentication.framework.imp.pkg.version.range>
-        <httpcomponents-httpclient.imp.pkg.version.range>[4.5.13.wso2v1,5.0.0)
-        </httpcomponents-httpclient.imp.pkg.version.range>
         <imp.pkg.version.javax.servlet>[2.6,4)</imp.pkg.version.javax.servlet>
         <oltu.package.import.version.range>[1.0.0.wso2v1,2.0.0)</oltu.package.import.version.range>
         <carbon.identity.application.authenticator.oidc.imp.pkg.version.range>[5.12.0,8.0.0)</carbon.identity.application.authenticator.oidc.imp.pkg.version.range>
@@ -434,7 +336,6 @@
         <maven.bundle.plugin.version>5.1.9</maven.bundle.plugin.version>
         <maven.surefire.plugin.version>3.2.5</maven.surefire.plugin.version>
         <maven.compiler.plugin.version>3.14.1</maven.compiler.plugin.version>
-        <maven.war.plugin.version>3.3.2</maven.war.plugin.version>
         <build.helper.maven.plugin.version>1.8</build.helper.maven.plugin.version>
         <maven.checkstyleplugin.version>3.1.0</maven.checkstyleplugin.version>
         <spotbugs-maven-plugin.version>4.8.4.0</spotbugs-maven-plugin.version>

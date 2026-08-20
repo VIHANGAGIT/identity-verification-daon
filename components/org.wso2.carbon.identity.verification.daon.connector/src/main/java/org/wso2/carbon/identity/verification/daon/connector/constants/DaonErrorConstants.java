@@ -22,7 +22,9 @@ package org.wso2.carbon.identity.verification.daon.connector.constants;
  * Error catalogue for the Daon TrustX connector.
  *
  * <p>Every failure the connector can report has an entry here, so a code seen in a log line or in a flow
- * API error response maps to exactly one site in the code. Codes follow the WSO2 Identity Server
+ * API error response maps to exactly one kind of failure. Where one kind can arise at more than one site,
+ * the description carries a {@code %s} naming the site rather than the catalogue carrying a near-duplicate
+ * entry per caller. Codes follow the WSO2 Identity Server
  * convention used across the connector pack: {@code 60xxx} for client errors (something the user or the
  * connection configuration can fix) and {@code 65xxx} for server errors. The {@code DAON-} prefix is
  * applied by {@link ErrorMessage#getCode()} rather than stored, so the enum literals stay bare digits.</p>
@@ -95,10 +97,6 @@ public class DaonErrorConstants {
                 "The identity Daon verified does not match the Daon subject recorded for the account "
                         + "being recovered. Expected: %s",
                 "daon.identity.verification.identity.mismatch"),
-
-        ERROR_INVALID_VERIFICATION_FLOW_STATUS("60007",
-                "Invalid Daon verification flow status provided.",
-                "The verification flow status '%s' is not a recognised Daon flow status."),
 
         /**
          * The login step's counterpart to {@link #ERROR_RECOVERY_IDENTITY_MISMATCH}: Daon verified an
@@ -212,10 +210,15 @@ public class DaonErrorConstants {
                 "The Daon verification could not be recorded for the user.",
                 "The Daon federated association could not be persisted because %s."),
 
+        /**
+         * A stored-claim read failed while assembling the Daon claim value-requests. Covers every flow
+         * that does one; {@code %s} names which user could not be read, so the log line still identifies
+         * the site.
+         */
         ERROR_READING_USER_CLAIMS("65015",
                 "Could not read the user's stored claims.",
-                "Error reading the invited user's stored claims for Daon verification; the "
-                        + "corresponding claim value-requests will not be sent."),
+                "Error reading the stored claims of %s; the corresponding Daon claim value-requests will "
+                        + "not be sent, so fewer attributes are verified against the identity document."),
 
         ERROR_BUILDING_CLAIMS_REQUEST("65017",
                 "Could not build the Daon claims request.",
@@ -261,11 +264,6 @@ public class DaonErrorConstants {
                 "Daon did not return an identity to enrol.",
                 "The 'preferred_username' claim is not present in the Daon ID token returned for the "
                         + "enrolment, so there is no Daon subject to record for the user."),
-
-        ERROR_READING_USER_CLAIMS_AT_LOGIN("65026",
-                "Could not read the user's stored claims.",
-                "Error reading the stored claims of the user being enrolled at the login step; the "
-                        + "corresponding claim value-requests will not be sent to Daon."),
 
         /**
          * {@code daon_idp_id} names a connection that is not a Daon one.

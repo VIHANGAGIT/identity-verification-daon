@@ -80,6 +80,17 @@
             <artifactId>org.wso2.carbon.identity.application.authenticator.oidc</artifactId>
             <scope>provided</scope>
         </dependency>
+        <!--
+        DaonAuthenticator and DaonExecutor compile against OAuthClientResponse, so oltu is a direct
+        dependency and is declared as one. It used to arrive only transitively through the OIDC
+        authenticator above, which meant a change in that artifact's own dependencies could break this
+        module's compilation with nothing in this pom to explain why.
+        -->
+        <dependency>
+            <groupId>org.wso2.orbit.org.apache.oltu.oauth2</groupId>
+            <artifactId>oltu</artifactId>
+            <scope>provided</scope>
+        </dependency>
         <dependency>
             <groupId>org.wso2.carbon.identity.framework</groupId>
             <artifactId>org.wso2.carbon.identity.flow.execution.engine</artifactId>
@@ -100,11 +111,6 @@
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.jacoco</groupId>
-            <artifactId>org.jacoco.agent</artifactId>
-            <classifier>runtime</classifier>
         </dependency>
         <dependency>
             <groupId>org.mockito</groupId>
@@ -157,6 +163,36 @@
                         </classpathDependencyExclude>
                     </classpathDependencyExcludes>
                 </configuration>
+            </plugin>
+            <!--
+            Produces the coverage report the org.jacoco.agent dependency was evidently meant to enable —
+            it was declared here with no scope (so it leaked into compile) and no plugin to consume it, so
+            no report was ever generated. prepare-agent sets argLine, which surefire picks up because the
+            configuration above does not override it.
+
+            Deliberately report-only: no `check` goal and no threshold. Coverage is currently limited to
+            the util and exception classes, so a threshold would either fail the build or have to be set
+            so low it asserts nothing. Add one together with the DaonAuthenticator/DaonExecutor tests.
+            -->
+            <plugin>
+                <groupId>org.jacoco</groupId>
+                <artifactId>jacoco-maven-plugin</artifactId>
+                <version>${jacoco.version}</version>
+                <executions>
+                    <execution>
+                        <id>prepare-agent</id>
+                        <goals>
+                            <goal>prepare-agent</goal>
+                        </goals>
+                    </execution>
+                    <execution>
+                        <id>report</id>
+                        <phase>test</phase>
+                        <goals>
+                            <goal>report</goal>
+                        </goals>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.felix</groupId>
