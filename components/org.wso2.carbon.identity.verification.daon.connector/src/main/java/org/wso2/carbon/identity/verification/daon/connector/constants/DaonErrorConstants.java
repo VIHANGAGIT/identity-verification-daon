@@ -265,7 +265,22 @@ public class DaonErrorConstants {
         ERROR_READING_USER_CLAIMS_AT_LOGIN("65026",
                 "Could not read the user's stored claims.",
                 "Error reading the stored claims of the user being enrolled at the login step; the "
-                        + "corresponding claim value-requests will not be sent to Daon.");
+                        + "corresponding claim value-requests will not be sent to Daon."),
+
+        /**
+         * {@code daon_idp_id} names a connection that is not a Daon one.
+         *
+         * <p>Raised instead of using it: the referenced connection is where a login connection reads its
+         * OIDC client id, secret and endpoints from, so a reference that is allowed to point anywhere lets
+         * a connection be configured to drive a verification request with another connection's credentials,
+         * against another provider's endpoints. Only a Daon connection may back a Daon request.</p>
+         */
+        ERROR_REFERENCED_IDP_NOT_DAON("65027",
+                "The referenced connection is not a Daon Identity Verifier connection. Check the Daon "
+                        + "Verifier ID configured on this connection.",
+                "The connection referenced by resource id %s carries no Daon federated authenticator "
+                        + "configuration, so it is not a Daon connection and its OIDC client configuration "
+                        + "must not be used to build a Daon verification request.");
 
         private final String code;
         private final String message;

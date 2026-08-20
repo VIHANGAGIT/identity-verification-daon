@@ -24,6 +24,7 @@
             <class name="org.wso2.carbon.identity.verification.daon.connector.util.DaonCallbackErrorsTest"/>
             <class name="org.wso2.carbon.identity.verification.daon.connector.util.DaonClaimsRequestBuilderTest"/>
             <class name="org.wso2.carbon.identity.verification.daon.connector.util.DaonJwtUtilTest"/>
+            <class name="org.wso2.carbon.identity.verification.daon.connector.util.DaonReferencedIdpUtilTest"/>
             <class name="org.wso2.carbon.identity.verification.daon.connector.exception.DaonExceptionMgtTest"/>
         </classes>
     </test>

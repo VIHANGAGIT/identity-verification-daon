@@ -49,6 +49,9 @@ import java.util.Map;
  * For a referencing connection, both the login authenticator and the flow executor call this helper to
  * load the client id/secret, authorize/token endpoints and scopes from the referenced connection (by
  * resource id) at runtime; for a self-contained connection they use its own properties directly.</p>
+ *
+ * <p>A reference is only ever honoured when it names a <b>Daon</b> connection — see
+ * {@link #resolveDaonIdp}, which every path that dereferences {@code daon_idp_id} goes through.</p>
  */
 public final class DaonReferencedIdpUtil {
 
@@ -138,39 +141,97 @@ public final class DaonReferencedIdpUtil {
             LOG.debug("Blank Daon IDP resource id or tenant domain; nothing to resolve.");
             return config;
         }
+        IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);
+        if (idp == null) {
+            return config;
+        }
+        FederatedAuthenticatorConfig authConfig = resolveDaonAuthenticatorConfig(idp);
+        if (authConfig == null || authConfig.getProperties() == null) {
+            LOG.warn(DaonExceptionMgt.errorLog(
+                    ErrorMessage.ERROR_REFERENCED_IDP_NO_AUTHENTICATOR_CONFIG, idpResourceId));
+            return config;
+        }
+        for (Property property : authConfig.getProperties()) {
+            if (property != null && StringUtils.isNotBlank(property.getName())) {
+                config.put(property.getName(), property.getValue());
+            }
+        }
+        return config;
+    }
+
+    /**
+     * Loads the connection {@code daon_idp_id} names and confirms it is a Daon one.
+     *
+     * <p><b>SECURITY:</b> the reference decides which OIDC client id, secret and endpoints a referencing
+     * connection builds its request from, and nothing else constrains where it points — it is a plain
+     * resource id on the connection's own configuration. Without this check a connection can be configured
+     * to reference <em>any</em> identity provider in the tenant and drive what the flows treat as a Daon
+     * identity verification using that provider's client credentials, against that provider's authorize
+     * and token endpoints. Whatever comes back is then read as a Daon verification result. So the
+     * reference is resolved through here and nowhere else, and a non-Daon target is refused rather than
+     * partially used.</p>
+     *
+     * <p>Every caller fails closed on {@code null}: the OIDC configuration stays empty (the callers of
+     * {@link #buildEffectiveProperties} then report {@code DAON-65001}), and the IDP name and claim
+     * mappings resolve to nothing, so no enrolment is recorded and no verification is treated as
+     * successful.</p>
+     *
+     * @return the referenced Daon connection, or {@code null} if it cannot be resolved or is not a Daon
+     *         connection. The specific cause is logged here with its own code.
+     */
+    private static IdentityProvider resolveDaonIdp(String idpResourceId, String tenantDomain) {
+
         IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
         if (idpManager == null) {
             LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_IDP_MANAGER_UNAVAILABLE, idpResourceId));
-            return config;
+            return null;
         }
         try {
             IdentityProvider idp = idpManager.getIdPByResourceId(idpResourceId, tenantDomain, false);
             if (idp == null) {
                 LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_FOUND,
                         idpResourceId));
-                return config;
+                return null;
             }
-            FederatedAuthenticatorConfig authConfig = idp.getDefaultAuthenticatorConfig();
-            if (authConfig == null) {
-                FederatedAuthenticatorConfig[] configs = idp.getFederatedAuthenticatorConfigs();
-                if (configs != null && configs.length > 0) {
-                    authConfig = configs[0];
-                }
+            if (resolveDaonAuthenticatorConfig(idp) == null) {
+                // Logged at error rather than warn: this is a misconfiguration that cannot be worked
+                // around, and the flows it breaks report only that the OIDC configuration is missing.
+                LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_DAON,
+                        idpResourceId));
+                return null;
             }
-            if (authConfig == null || authConfig.getProperties() == null) {
-                LOG.warn(DaonExceptionMgt.errorLog(
-                        ErrorMessage.ERROR_REFERENCED_IDP_NO_AUTHENTICATOR_CONFIG, idpResourceId));
-                return config;
-            }
-            for (Property property : authConfig.getProperties()) {
-                if (property != null && StringUtils.isNotBlank(property.getName())) {
-                    config.put(property.getName(), property.getValue());
-                }
-            }
+            return idp;
         } catch (IdentityProviderManagementException e) {
             LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_REFERENCED_IDP, idpResourceId), e);
+            return null;
         }
-        return config;
+    }
+
+    /**
+     * The connection's Daon federated authenticator configuration, or {@code null} when it has none —
+     * which is what makes the connection not a Daon one. Both Daon connection templates are of this same
+     * authenticator type (see {@code DaonAuthenticator#getConfigurationProperties}), so the self-contained
+     * Identity Verifier a reference is meant to point at always carries one.
+     *
+     * <p>Selecting by name also replaces picking the first configuration blindly: the properties read are
+     * then always the Daon authenticator's, on a connection that happens to carry more than one.</p>
+     */
+    private static FederatedAuthenticatorConfig resolveDaonAuthenticatorConfig(IdentityProvider idp) {
+
+        FederatedAuthenticatorConfig defaultConfig = idp.getDefaultAuthenticatorConfig();
+        if (defaultConfig != null && DaonConstants.AUTHENTICATOR_NAME.equals(defaultConfig.getName())) {
+            return defaultConfig;
+        }
+        FederatedAuthenticatorConfig[] configs = idp.getFederatedAuthenticatorConfigs();
+        if (configs == null) {
+            return null;
+        }
+        for (FederatedAuthenticatorConfig config : configs) {
+            if (config != null && DaonConstants.AUTHENTICATOR_NAME.equals(config.getName())) {
+                return config;
+            }
+        }
+        return null;
     }
 
     /**
@@ -191,23 +252,8 @@ public final class DaonReferencedIdpUtil {
             LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the IDP name.");
             return null;
         }
-        IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
-        if (idpManager == null) {
-            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_IDP_MANAGER_UNAVAILABLE, idpResourceId));
-            return null;
-        }
-        try {
-            IdentityProvider idp = idpManager.getIdPByResourceId(idpResourceId, tenantDomain, false);
-            if (idp == null) {
-                LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_FOUND,
-                        idpResourceId));
-                return null;
-            }
-            return idp.getIdentityProviderName();
-        } catch (IdentityProviderManagementException e) {
-            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_REFERENCED_IDP, idpResourceId), e);
-            return null;
-        }
+        IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);
+        return idp != null ? idp.getIdentityProviderName() : null;
     }
 
     /**
@@ -231,34 +277,20 @@ public final class DaonReferencedIdpUtil {
             LOG.debug("Blank Daon IDP resource id or tenant domain; cannot resolve the claim mappings.");
             return mappings;
         }
-        IdpManager idpManager = DaonConnectorDataHolder.getIdpManager();
-        if (idpManager == null) {
-            LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_IDP_MANAGER_UNAVAILABLE, idpResourceId));
+        IdentityProvider idp = resolveDaonIdp(idpResourceId, tenantDomain);
+        if (idp == null || idp.getClaimConfig() == null || idp.getClaimConfig().getClaimMappings() == null) {
             return mappings;
         }
-        try {
-            IdentityProvider idp = idpManager.getIdPByResourceId(idpResourceId, tenantDomain, false);
-            if (idp == null) {
-                LOG.warn(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_REFERENCED_IDP_NOT_FOUND,
-                        idpResourceId));
-                return mappings;
+        for (ClaimMapping claimMapping : idp.getClaimConfig().getClaimMappings()) {
+            if (claimMapping == null || claimMapping.getLocalClaim() == null
+                    || claimMapping.getRemoteClaim() == null) {
+                continue;
             }
-            if (idp.getClaimConfig() == null || idp.getClaimConfig().getClaimMappings() == null) {
-                return mappings;
+            String localClaimUri = claimMapping.getLocalClaim().getClaimUri();
+            String remoteClaimUri = claimMapping.getRemoteClaim().getClaimUri();
+            if (StringUtils.isNotBlank(localClaimUri) && StringUtils.isNotBlank(remoteClaimUri)) {
+                mappings.put(localClaimUri, remoteClaimUri);
             }
-            for (ClaimMapping claimMapping : idp.getClaimConfig().getClaimMappings()) {
-                if (claimMapping == null || claimMapping.getLocalClaim() == null
-                        || claimMapping.getRemoteClaim() == null) {
-                    continue;
-                }
-                String localClaimUri = claimMapping.getLocalClaim().getClaimUri();
-                String remoteClaimUri = claimMapping.getRemoteClaim().getClaimUri();
-                if (StringUtils.isNotBlank(localClaimUri) && StringUtils.isNotBlank(remoteClaimUri)) {
-                    mappings.put(localClaimUri, remoteClaimUri);
-                }
-            }
-        } catch (IdentityProviderManagementException e) {
-            LOG.error(DaonExceptionMgt.errorLog(ErrorMessage.ERROR_RESOLVING_REFERENCED_IDP, idpResourceId), e);
         }
         return mappings;
     }
