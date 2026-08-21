@@ -37,7 +37,6 @@ import org.wso2.carbon.identity.flow.execution.engine.metadata.FlowExecutorMetad
 import org.wso2.carbon.identity.flow.execution.engine.model.ExecutorResponse;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowExecutionContext;
 import org.wso2.carbon.identity.flow.execution.engine.model.FlowUser;
-import org.wso2.carbon.identity.flow.mgt.Constants.ExecutorBehaviorFlags;
 import org.wso2.carbon.identity.flow.mgt.Constants.FlowTypes;
 import org.wso2.carbon.identity.organization.management.service.OrganizationManager;
 import org.wso2.carbon.identity.organization.management.service.util.OrganizationManagementUtil;
@@ -118,12 +117,14 @@ public class DaonExecutor extends OpenIDConnectExecutor {
 
     @Override
     public String getName() {
+
         return DAON_EXECUTOR_NAME;
     }
 
     @Override
     public String getAMRValue() {
-        return DAON_EXECUTOR_NAME;
+
+        return DaonConstants.AUTHENTICATOR_NAME;
     }
 
     /**
@@ -145,7 +146,6 @@ public class DaonExecutor extends OpenIDConnectExecutor {
                 .displayName(DaonConstants.AUTHENTICATOR_FRIENDLY_NAME + " Verification")
                 .description("Verify user identity with Daon TrustX.")
                 .icon("assets/images/icons/daon.svg")
-                .behaviorFlags(Collections.singletonList(ExecutorBehaviorFlags.RECOVERY_FACTOR))
                 .associatedAuthenticator(DaonConstants.AUTHENTICATOR_NAME)
                 .connectionRequired(true)
                 .build();
