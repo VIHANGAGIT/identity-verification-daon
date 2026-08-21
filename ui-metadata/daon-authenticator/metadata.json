@@ -30,10 +30,9 @@
                         "placeholder": "Select a Daon Identity Verifier connection.",
                         "required": true,
                         "optionsSource": {
-                            "type": "connections",
+                            "type": "identity-providers",
                             "authenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
                             "templateId": "daon-idv",
-                            "excludeCurrent": true,
                             "valueField": "id",
                             "labelField": "name"
                         },
@@ -160,10 +159,9 @@
                     "readOnly": false,
                     "value": "",
                     "optionsSource": {
-                        "type": "connections",
+                        "type": "identity-providers",
                         "authenticatorId": "RGFvbkF1dGhlbnRpY2F0b3I",
                         "templateId": "daon-idv",
-                        "excludeCurrent": true,
                         "valueField": "id",
                         "labelField": "name"
                     },
